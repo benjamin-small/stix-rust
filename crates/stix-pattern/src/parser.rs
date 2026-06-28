@@ -2,7 +2,7 @@
 
 use crate::ast::{
     Comparison, ComparisonExpression, ComparisonOperand, ComparisonOperator, Literal, ObjectPath,
-    PathStep, Pattern,
+    ObservationExpression, PathStep, Pattern, Qualifier,
 };
 use crate::error::{ParseError, Result, Span};
 use crate::lexer::{Token, TokenKind};
@@ -228,16 +228,131 @@ impl<'a> Parser<'a> {
         self.advance();
         Ok(lit)
     }
+
+    // --- observation expressions ---
+
+    pub(crate) fn parse_observation_expression(&mut self) -> Result<ObservationExpression> {
+        let mut left = self.parse_observation_or()?;
+        while self.eat(&TokenKind::FollowedBy) {
+            let right = self.parse_observation_or()?;
+            left = ObservationExpression::FollowedBy(Box::new(left), Box::new(right));
+        }
+        Ok(left)
+    }
+
+    fn parse_observation_or(&mut self) -> Result<ObservationExpression> {
+        let mut left = self.parse_observation_and()?;
+        while self.eat(&TokenKind::Or) {
+            let right = self.parse_observation_and()?;
+            left = ObservationExpression::Or(Box::new(left), Box::new(right));
+        }
+        Ok(left)
+    }
+
+    fn parse_observation_and(&mut self) -> Result<ObservationExpression> {
+        let mut left = self.parse_observation_qualified()?;
+        while self.eat(&TokenKind::And) {
+            let right = self.parse_observation_qualified()?;
+            left = ObservationExpression::And(Box::new(left), Box::new(right));
+        }
+        Ok(left)
+    }
+
+    fn parse_observation_qualified(&mut self) -> Result<ObservationExpression> {
+        let mut expr = self.parse_observation_primary()?;
+        loop {
+            let qualifier = match self.peek() {
+                Some(TokenKind::Within) => {
+                    self.advance();
+                    let seconds = self.parse_number_as_f64()?;
+                    self.expect(&TokenKind::Seconds, "SECONDS after WITHIN value")?;
+                    Qualifier::Within { seconds }
+                }
+                Some(TokenKind::Repeats) => {
+                    self.advance();
+                    let count = self.parse_non_negative_int()?;
+                    self.expect(&TokenKind::Times, "TIMES after REPEATS value")?;
+                    Qualifier::Repeats { count }
+                }
+                Some(TokenKind::Start) => {
+                    self.advance();
+                    let start = self.parse_timestamp_string()?;
+                    self.expect(&TokenKind::Stop, "STOP after START timestamp")?;
+                    let stop = self.parse_timestamp_string()?;
+                    Qualifier::StartStop { start, stop }
+                }
+                _ => break,
+            };
+            expr = ObservationExpression::Qualified {
+                expression: Box::new(expr),
+                qualifier,
+            };
+        }
+        Ok(expr)
+    }
+
+    fn parse_observation_primary(&mut self) -> Result<ObservationExpression> {
+        if self.eat(&TokenKind::LBracket) {
+            let comp = self.parse_comparison_expression()?;
+            self.expect(&TokenKind::RBracket, "']' to close observation")?;
+            return Ok(ObservationExpression::Observation(Box::new(comp)));
+        }
+        if self.eat(&TokenKind::LParen) {
+            let inner = self.parse_observation_expression()?;
+            self.expect(&TokenKind::RParen, "')' to close grouped observation")?;
+            return Ok(inner);
+        }
+        Err(self.error_here("expected '[' or '(' to start an observation"))
+    }
+
+    fn parse_number_as_f64(&mut self) -> Result<f64> {
+        match self.peek() {
+            Some(TokenKind::Integer(n)) => {
+                let v = *n as f64;
+                self.advance();
+                Ok(v)
+            }
+            Some(TokenKind::Float(f)) => {
+                let v = *f;
+                self.advance();
+                Ok(v)
+            }
+            _ => Err(self.error_here("expected a numeric value")),
+        }
+    }
+
+    fn parse_non_negative_int(&mut self) -> Result<u64> {
+        match self.peek() {
+            Some(TokenKind::Integer(n)) if *n >= 0 => {
+                let v = *n as u64;
+                self.advance();
+                Ok(v)
+            }
+            _ => Err(self.error_here("expected a non-negative integer")),
+        }
+    }
+
+    fn parse_timestamp_string(&mut self) -> Result<String> {
+        match self.peek() {
+            Some(TokenKind::Timestamp(s)) => {
+                let v = s.clone();
+                self.advance();
+                Ok(v)
+            }
+            _ => Err(self.error_here("expected a t'...' timestamp literal")),
+        }
+    }
 }
 
 /// Parse a complete pattern string into an AST.
-/// (Observation/comparison parsing is added in later tasks.)
 pub fn parse(src: &str) -> Result<Pattern> {
-    let _ = crate::lexer::tokenize(src)?;
-    Err(ParseError::new(
-        "parse() implemented in a later task",
-        Span::new(0, 0),
-    ))
+    let tokens = crate::lexer::tokenize(src)?;
+    let mut parser = Parser::new(&tokens, src);
+    let expression = parser.parse_observation_expression()?;
+    if !parser.at_end() {
+        return Err(parser.error_here("unexpected trailing tokens after pattern"));
+    }
+    Ok(Pattern { expression })
 }
 
 #[cfg(test)]
@@ -411,5 +526,100 @@ mod tests {
             },
             _ => panic!("top should be AND"),
         }
+    }
+
+    use crate::ast::{ObservationExpression, Qualifier};
+    use crate::parser::parse;
+
+    #[test]
+    fn parses_single_observation() {
+        let p = parse("[ipv4-addr:value = '1.2.3.4']").unwrap();
+        match p.expression {
+            ObservationExpression::Observation(_) => {}
+            _ => panic!("expected single observation"),
+        }
+    }
+
+    #[test]
+    fn observation_and_binds_tighter_than_or() {
+        // [a] OR [b] AND [c] => [a] OR ([b] AND [c])
+        let p = parse("[file:name='a'] OR [file:name='b'] AND [file:size=1]").unwrap();
+        match p.expression {
+            ObservationExpression::Or(_, right) => match *right {
+                ObservationExpression::And(_, _) => {}
+                _ => panic!("right of OR should be AND"),
+            },
+            _ => panic!("top should be OR"),
+        }
+    }
+
+    #[test]
+    fn followedby_is_loosest() {
+        // [a] FOLLOWEDBY [b] OR [c] => [a] FOLLOWEDBY ([b] OR [c])
+        let p = parse("[file:name='a'] FOLLOWEDBY [file:name='b'] OR [file:name='c']").unwrap();
+        match p.expression {
+            ObservationExpression::FollowedBy(_, right) => match *right {
+                ObservationExpression::Or(_, _) => {}
+                _ => panic!("right of FOLLOWEDBY should be OR"),
+            },
+            _ => panic!("top should be FOLLOWEDBY"),
+        }
+    }
+
+    #[test]
+    fn parses_parenthesized_observation() {
+        let p = parse("([file:name='a'] OR [file:name='b']) FOLLOWEDBY [file:size=1]").unwrap();
+        match p.expression {
+            ObservationExpression::FollowedBy(left, _) => match *left {
+                ObservationExpression::Or(_, _) => {}
+                _ => panic!("left should be OR"),
+            },
+            _ => panic!("top should be FOLLOWEDBY"),
+        }
+    }
+
+    #[test]
+    fn parses_within_qualifier() {
+        let p = parse("[file:name='a'] REPEATS 2 TIMES WITHIN 60 SECONDS").unwrap();
+        // Outermost qualifier is the last one parsed (WITHIN), wrapping REPEATS.
+        match p.expression {
+            ObservationExpression::Qualified {
+                qualifier: Qualifier::Within { seconds },
+                expression,
+            } => {
+                assert_eq!(seconds, 60.0);
+                match *expression {
+                    ObservationExpression::Qualified {
+                        qualifier: Qualifier::Repeats { count },
+                        ..
+                    } => {
+                        assert_eq!(count, 2);
+                    }
+                    _ => panic!("inner should be REPEATS"),
+                }
+            }
+            _ => panic!("outer should be WITHIN"),
+        }
+    }
+
+    #[test]
+    fn parses_start_stop_qualifier() {
+        let p = parse("[file:name='a'] START t'2020-01-01T00:00:00Z' STOP t'2020-01-02T00:00:00Z'")
+            .unwrap();
+        match p.expression {
+            ObservationExpression::Qualified {
+                qualifier: Qualifier::StartStop { start, stop },
+                ..
+            } => {
+                assert_eq!(start, "2020-01-01T00:00:00Z");
+                assert_eq!(stop, "2020-01-02T00:00:00Z");
+            }
+            _ => panic!("expected START..STOP"),
+        }
+    }
+
+    #[test]
+    fn trailing_tokens_error() {
+        assert!(parse("[file:name='a'] [file:name='b']").is_err());
     }
 }
