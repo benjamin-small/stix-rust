@@ -1,5 +1,6 @@
 //! Match STIX 2.1 patterns against observed STIX objects.
 
+pub mod compare;
 pub mod error;
 pub mod observation;
 pub mod resolve;
