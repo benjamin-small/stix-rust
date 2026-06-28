@@ -5,12 +5,15 @@ use std::collections::BTreeMap;
 use stix_model::{ObjectStore, ObjectView, StixValue};
 use stix_pattern::ast::{
     Comparison, ComparisonExpression, ComparisonOperand, ComparisonOperator, Literal,
+    ObservationExpression, Pattern,
 };
 
 use crate::compare::{value_cmp_literal, value_eq_literal, value_in_set};
+use crate::error::MatchError;
 use crate::observation::Observation;
 use crate::pattern_ops::{like_matches, regex_matches};
 use crate::resolve::resolve_path;
+use crate::result::MatchResult;
 use crate::subset::{is_subset, is_superset};
 
 /// Evaluate a single `Comparison` against a single object, dereferencing through
@@ -180,6 +183,67 @@ fn eval_tree(
     }
 }
 
+/// Evaluate a whole pattern against a list of observations.
+///
+/// Phase 1: single observations and observation-level `AND`/`OR`. `FOLLOWEDBY` and
+/// qualifiers (`WITHIN`/`REPEATS`/`START..STOP`) are parsed but return
+/// `MatchError::Unsupported` rather than silently passing.
+pub fn eval_pattern(
+    pattern: &Pattern,
+    observations: &[Observation],
+    store: Option<&ObjectStore>,
+) -> Result<MatchResult, MatchError> {
+    let mut matched = Vec::new();
+    let is_match =
+        eval_observation_expression(&pattern.expression, observations, store, &mut matched)?;
+    if is_match {
+        matched.sort_unstable();
+        matched.dedup();
+        Ok(MatchResult::matched(matched))
+    } else {
+        Ok(MatchResult::no_match())
+    }
+}
+
+/// Returns whether the observation expression matches, accumulating the indices of
+/// observations that satisfied any `[ ... ]` leaf into `matched`.
+fn eval_observation_expression(
+    expr: &ObservationExpression,
+    observations: &[Observation],
+    store: Option<&ObjectStore>,
+    matched: &mut Vec<usize>,
+) -> Result<bool, MatchError> {
+    match expr {
+        ObservationExpression::Observation(comparison) => {
+            let mut any = false;
+            for (i, obs) in observations.iter().enumerate() {
+                if eval_comparison_expression(comparison, obs, store) {
+                    matched.push(i);
+                    any = true;
+                }
+            }
+            Ok(any)
+        }
+        ObservationExpression::And(a, b) => {
+            let left = eval_observation_expression(a, observations, store, matched)?;
+            let right = eval_observation_expression(b, observations, store, matched)?;
+            Ok(left && right)
+        }
+        ObservationExpression::Or(a, b) => {
+            let left = eval_observation_expression(a, observations, store, matched)?;
+            let right = eval_observation_expression(b, observations, store, matched)?;
+            Ok(left || right)
+        }
+        ObservationExpression::FollowedBy(_, _) => Err(MatchError::Unsupported(
+            "FOLLOWEDBY sequencing is not yet implemented".to_string(),
+        )),
+        ObservationExpression::Qualified { .. } => Err(MatchError::Unsupported(
+            "observation qualifiers (WITHIN/REPEATS/START..STOP) are not yet implemented"
+                .to_string(),
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -344,5 +408,50 @@ mod tests {
             ))),
         );
         assert!(eval_comparison_expression(&expr, &o, None));
+    }
+
+    use stix_pattern::parse;
+
+    #[test]
+    fn single_observation_matches_across_set() {
+        let observations = vec![
+            observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"})]),
+            observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--2", "value": "1.2.3.4"})]),
+        ];
+        let pattern = parse("[ipv4-addr:value = '1.2.3.4']").unwrap();
+        let result = eval_pattern(&pattern, &observations, None).unwrap();
+        assert!(result.is_match());
+        assert_eq!(result.observations(), &[1]);
+    }
+
+    #[test]
+    fn observation_and_needs_both() {
+        let observations = vec![
+            observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"})]),
+            observation(vec![serde_json::json!({"type": "domain-name", "id": "domain-name--1", "value": "evil.example"})]),
+        ];
+        let yes = parse("[ipv4-addr:value = '1.1.1.1'] AND [domain-name:value = 'evil.example']").unwrap();
+        assert!(eval_pattern(&yes, &observations, None).unwrap().is_match());
+
+        let no = parse("[ipv4-addr:value = '1.1.1.1'] AND [domain-name:value = 'good.example']").unwrap();
+        assert!(!eval_pattern(&no, &observations, None).unwrap().is_match());
+    }
+
+    #[test]
+    fn followedby_is_unsupported() {
+        let observations =
+            vec![observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"})])];
+        let pattern = parse("[ipv4-addr:value = '1.1.1.1'] FOLLOWEDBY [ipv4-addr:value = '2.2.2.2']").unwrap();
+        let err = eval_pattern(&pattern, &observations, None).unwrap_err();
+        assert!(matches!(err, crate::error::MatchError::Unsupported(_)));
+    }
+
+    #[test]
+    fn qualifier_is_unsupported() {
+        let observations =
+            vec![observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"})])];
+        let pattern = parse("[ipv4-addr:value = '1.1.1.1'] REPEATS 2 TIMES").unwrap();
+        let err = eval_pattern(&pattern, &observations, None).unwrap_err();
+        assert!(matches!(err, crate::error::MatchError::Unsupported(_)));
     }
 }
