@@ -5,7 +5,7 @@ members = ["crates/stix-pattern", "crates/stix-model"]
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/bsmall/stix-rust"
+repository = "https://github.com/benjamin-small/stix-rust"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
