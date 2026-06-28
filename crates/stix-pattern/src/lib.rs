@@ -2,6 +2,7 @@
 
 pub mod ast;
 pub mod error;
+pub mod lexer;
 
 pub use ast::*;
 pub use error::{ParseError, Span};
