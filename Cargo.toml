@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/stix-pattern", "crates/stix-model"]
+members = ["crates/stix-pattern", "crates/stix-model", "crates/stix-matcher", "crates/stix"]
 
 [workspace.package]
 edition = "2021"
@@ -11,3 +11,7 @@ repository = "https://github.com/benjamin-small/stix-rust"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
+regex = "1"
+stix-pattern = { path = "crates/stix-pattern" }
+stix-model = { path = "crates/stix-model" }
+stix-matcher = { path = "crates/stix-matcher" }

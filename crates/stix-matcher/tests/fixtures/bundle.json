@@ -1,0 +1,17 @@
+{
+  "type": "bundle",
+  "id": "bundle--m1",
+  "objects": [
+    { "type": "ipv4-addr", "id": "ipv4-addr--m1", "value": "198.51.100.5" },
+    { "type": "domain-name", "id": "domain-name--m1", "value": "evil.example" },
+    { "type": "network-traffic", "id": "network-traffic--m1", "src_ref": "ipv4-addr--m1" },
+    {
+      "type": "observed-data",
+      "id": "observed-data--m1",
+      "first_observed": "2020-03-01T12:00:00Z",
+      "last_observed": "2020-03-01T12:10:00Z",
+      "number_observed": 1,
+      "object_refs": ["ipv4-addr--m1", "domain-name--m1", "network-traffic--m1"]
+    }
+  ]
+}
