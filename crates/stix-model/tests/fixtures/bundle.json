@@ -1,0 +1,24 @@
+{
+  "type": "bundle",
+  "id": "bundle--a1",
+  "objects": [
+    {
+      "type": "ipv4-addr",
+      "id": "ipv4-addr--a1",
+      "value": "198.51.100.5"
+    },
+    {
+      "type": "domain-name",
+      "id": "domain-name--a1",
+      "value": "evil.example"
+    },
+    {
+      "type": "observed-data",
+      "id": "observed-data--a1",
+      "first_observed": "2020-03-01T12:00:00Z",
+      "last_observed": "2020-03-01T12:10:00Z",
+      "number_observed": 5,
+      "object_refs": ["ipv4-addr--a1", "domain-name--a1"]
+    }
+  ]
+}
