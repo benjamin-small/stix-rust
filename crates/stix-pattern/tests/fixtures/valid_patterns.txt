@@ -1,0 +1,34 @@
+# Simple comparisons
+[ipv4-addr:value = '198.51.100.1']
+[file:size > 1024]
+[file:name != 'benign.txt']
+[domain-name:value LIKE '%.evil.example']
+[email-message:subject MATCHES 'invoice[0-9]+']
+# Boolean logic
+[file:name = 'a' AND file:size = 1]
+[file:name = 'a' OR file:name = 'b']
+[(file:name = 'a' OR file:name = 'b') AND file:size = 1]
+# NOT and EXISTS
+[file:name NOT = 'x']
+[EXISTS file:name]
+# IN set
+[ipv4-addr:value IN ('1.1.1.1', '8.8.8.8', '9.9.9.9')]
+# Nested object paths
+[file:hashes.'SHA-256' = 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f']
+[network-traffic:protocols[0] = 'tcp']
+[x-custom:list[*] = 'y']
+# Typed literals
+[file:created = t'2020-01-01T00:00:00Z']
+[artifact:payload_bin = b'aGVsbG8=']
+[file:magic_number_hex = h'cafebabe']
+[file:is_encrypted = true]
+# Observation operators
+[file:name='a'] AND [file:name='b']
+[file:name='a'] OR [file:name='b']
+[file:name='a'] FOLLOWEDBY [file:name='b']
+([file:name='a'] OR [file:name='b']) FOLLOWEDBY [file:size=1]
+# Qualifiers
+[file:name='a'] WITHIN 60 SECONDS
+[file:name='a'] REPEATS 5 TIMES
+[file:name='a'] START t'2020-01-01T00:00:00Z' STOP t'2020-01-02T00:00:00Z'
+[file:name='a'] REPEATS 2 TIMES WITHIN 60 SECONDS
