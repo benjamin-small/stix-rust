@@ -1,0 +1,16 @@
+[package]
+name = "stix-matcher"
+version = "0.0.1"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Match STIX 2.1 patterns against observed STIX objects."
+
+[dependencies]
+stix-pattern = { workspace = true }
+stix-model = { workspace = true }
+regex = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
