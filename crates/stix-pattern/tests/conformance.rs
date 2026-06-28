@@ -29,7 +29,9 @@ fn all_invalid_patterns_reject() {
     let mut leaks = Vec::new();
     for (lineno, pat) in lines(raw) {
         if parse(pat).is_ok() {
-            leaks.push(format!("line {lineno}: `{pat}` should have failed but parsed"));
+            leaks.push(format!(
+                "line {lineno}: `{pat}` should have failed but parsed"
+            ));
         }
     }
     assert!(

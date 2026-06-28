@@ -125,9 +125,9 @@ mod tests {
             value: ComparisonOperand::Literal(Literal::String("1.2.3.4".to_string())),
         };
         let pattern = Pattern {
-            expression: ObservationExpression::Observation(Box::new(
-                ComparisonExpression::Test(comp),
-            )),
+            expression: ObservationExpression::Observation(Box::new(ComparisonExpression::Test(
+                comp,
+            ))),
         };
         match pattern.expression {
             ObservationExpression::Observation(_) => {}

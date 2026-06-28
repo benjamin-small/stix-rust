@@ -354,7 +354,7 @@ mod tests {
     fn lexes_literals() {
         assert_eq!(kinds("42"), vec![TokenKind::Integer(42)]);
         assert_eq!(kinds("-7"), vec![TokenKind::Integer(-7)]);
-        assert_eq!(kinds("3.14"), vec![TokenKind::Float(3.14)]);
+        assert_eq!(kinds("2.5"), vec![TokenKind::Float(2.5)]);
         assert_eq!(
             kinds("true false"),
             vec![TokenKind::Boolean(true), TokenKind::Boolean(false)]
@@ -376,7 +376,10 @@ mod tests {
     #[test]
     fn lexes_string_escapes() {
         assert_eq!(kinds(r"'a\'b'"), vec![TokenKind::String("a'b".to_string())]);
-        assert_eq!(kinds(r"'a\\b'"), vec![TokenKind::String(r"a\b".to_string())]);
+        assert_eq!(
+            kinds(r"'a\\b'"),
+            vec![TokenKind::String(r"a\b".to_string())]
+        );
     }
 
     #[test]

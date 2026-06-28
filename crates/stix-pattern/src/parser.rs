@@ -391,10 +391,7 @@ mod tests {
         let path = parse_path("network-traffic:protocols[0]");
         assert_eq!(
             path.steps,
-            vec![
-                PathStep::Key("protocols".to_string()),
-                PathStep::Index(0)
-            ]
+            vec![PathStep::Key("protocols".to_string()), PathStep::Index(0)]
         );
 
         let path = parse_path("x:list[*]");
