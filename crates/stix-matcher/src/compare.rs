@@ -78,10 +78,22 @@ mod tests {
 
     #[test]
     fn numeric_equality_crosses_int_float() {
-        assert!(value_eq_literal(&StixValue::Integer(3), &Literal::Integer(3)));
-        assert!(value_eq_literal(&StixValue::Integer(3), &Literal::Float(3.0)));
-        assert!(value_eq_literal(&StixValue::Float(3.0), &Literal::Integer(3)));
-        assert!(!value_eq_literal(&StixValue::Integer(3), &Literal::Integer(4)));
+        assert!(value_eq_literal(
+            &StixValue::Integer(3),
+            &Literal::Integer(3)
+        ));
+        assert!(value_eq_literal(
+            &StixValue::Integer(3),
+            &Literal::Float(3.0)
+        ));
+        assert!(value_eq_literal(
+            &StixValue::Float(3.0),
+            &Literal::Integer(3)
+        ));
+        assert!(!value_eq_literal(
+            &StixValue::Integer(3),
+            &Literal::Integer(4)
+        ));
     }
 
     #[test]

@@ -102,7 +102,8 @@ mod tests {
 
     #[test]
     fn resolves_top_level_property() {
-        let o = obj(serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.2.3.4"}));
+        let o =
+            obj(serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.2.3.4"}));
         let p = path("ipv4-addr", vec![PathStep::Key("value".into())]);
         assert_eq!(
             resolve_path(&o, &p, None),
@@ -112,7 +113,8 @@ mod tests {
 
     #[test]
     fn type_mismatch_yields_nothing() {
-        let o = obj(serde_json::json!({"type": "domain-name", "id": "domain-name--1", "value": "x"}));
+        let o =
+            obj(serde_json::json!({"type": "domain-name", "id": "domain-name--1", "value": "x"}));
         let p = path("ipv4-addr", vec![PathStep::Key("value".into())]);
         assert!(resolve_path(&o, &p, None).is_empty());
     }
@@ -130,7 +132,10 @@ mod tests {
                 PathStep::Key("SHA-256".into()),
             ],
         );
-        assert_eq!(resolve_path(&o, &p, None), vec![StixValue::String("abc".into())]);
+        assert_eq!(
+            resolve_path(&o, &p, None),
+            vec![StixValue::String("abc".into())]
+        );
     }
 
     #[test]
@@ -143,7 +148,10 @@ mod tests {
             "network-traffic",
             vec![PathStep::Key("protocols".into()), PathStep::Index(1)],
         );
-        assert_eq!(resolve_path(&o, &idx, None), vec![StixValue::String("tcp".into())]);
+        assert_eq!(
+            resolve_path(&o, &idx, None),
+            vec![StixValue::String("tcp".into())]
+        );
 
         let any = path(
             "network-traffic",

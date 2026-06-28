@@ -24,7 +24,9 @@ pub fn eval_comparison(obj: &dyn ObjectView, c: &Comparison, store: Option<&Obje
     let base = if c.operator == ComparisonOperator::Exists {
         !values.is_empty()
     } else {
-        values.iter().any(|v| operator_holds(v, c.operator, &c.value))
+        values
+            .iter()
+            .any(|v| operator_holds(v, c.operator, &c.value))
     };
 
     base ^ c.negated
@@ -280,33 +282,65 @@ mod tests {
 
     #[test]
     fn equality_against_object() {
-        let o = obj(serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.2.3.4"}));
-        let c = cmp("ipv4-addr", "value", ComparisonOperator::Equal, false, lit("1.2.3.4"));
+        let o =
+            obj(serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.2.3.4"}));
+        let c = cmp(
+            "ipv4-addr",
+            "value",
+            ComparisonOperator::Equal,
+            false,
+            lit("1.2.3.4"),
+        );
         assert!(eval_comparison(&o, &c, None));
 
-        let c2 = cmp("ipv4-addr", "value", ComparisonOperator::Equal, false, lit("9.9.9.9"));
+        let c2 = cmp(
+            "ipv4-addr",
+            "value",
+            ComparisonOperator::Equal,
+            false,
+            lit("9.9.9.9"),
+        );
         assert!(!eval_comparison(&o, &c2, None));
     }
 
     #[test]
     fn negation_inverts() {
         let o = obj(serde_json::json!({"type": "file", "id": "file--1", "name": "evil.exe"}));
-        let c = cmp("file", "name", ComparisonOperator::Equal, true, lit("evil.exe"));
+        let c = cmp(
+            "file",
+            "name",
+            ComparisonOperator::Equal,
+            true,
+            lit("evil.exe"),
+        );
         assert!(!eval_comparison(&o, &c, None));
     }
 
     #[test]
     fn exists_checks_presence() {
         let o = obj(serde_json::json!({"type": "file", "id": "file--1", "name": "x"}));
-        let present = cmp("file", "name", ComparisonOperator::Exists, false, lit("ignored"));
+        let present = cmp(
+            "file",
+            "name",
+            ComparisonOperator::Exists,
+            false,
+            lit("ignored"),
+        );
         assert!(eval_comparison(&o, &present, None));
-        let absent = cmp("file", "size", ComparisonOperator::Exists, false, lit("ignored"));
+        let absent = cmp(
+            "file",
+            "size",
+            ComparisonOperator::Exists,
+            false,
+            lit("ignored"),
+        );
         assert!(!eval_comparison(&o, &absent, None));
     }
 
     #[test]
     fn in_set_against_object() {
-        let o = obj(serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "8.8.8.8"}));
+        let o =
+            obj(serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "8.8.8.8"}));
         let set = ComparisonOperand::Set(vec![
             Literal::String("1.1.1.1".into()),
             Literal::String("8.8.8.8".into()),
@@ -317,7 +351,9 @@ mod tests {
 
     #[test]
     fn issubset_against_object() {
-        let o = obj(serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "198.51.100.5"}));
+        let o = obj(
+            serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "198.51.100.5"}),
+        );
         let c = cmp(
             "ipv4-addr",
             "value",
@@ -415,8 +451,12 @@ mod tests {
     #[test]
     fn single_observation_matches_across_set() {
         let observations = vec![
-            observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"})]),
-            observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--2", "value": "1.2.3.4"})]),
+            observation(vec![
+                serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"}),
+            ]),
+            observation(vec![
+                serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--2", "value": "1.2.3.4"}),
+            ]),
         ];
         let pattern = parse("[ipv4-addr:value = '1.2.3.4']").unwrap();
         let result = eval_pattern(&pattern, &observations, None).unwrap();
@@ -427,29 +467,39 @@ mod tests {
     #[test]
     fn observation_and_needs_both() {
         let observations = vec![
-            observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"})]),
-            observation(vec![serde_json::json!({"type": "domain-name", "id": "domain-name--1", "value": "evil.example"})]),
+            observation(vec![
+                serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"}),
+            ]),
+            observation(vec![
+                serde_json::json!({"type": "domain-name", "id": "domain-name--1", "value": "evil.example"}),
+            ]),
         ];
-        let yes = parse("[ipv4-addr:value = '1.1.1.1'] AND [domain-name:value = 'evil.example']").unwrap();
+        let yes = parse("[ipv4-addr:value = '1.1.1.1'] AND [domain-name:value = 'evil.example']")
+            .unwrap();
         assert!(eval_pattern(&yes, &observations, None).unwrap().is_match());
 
-        let no = parse("[ipv4-addr:value = '1.1.1.1'] AND [domain-name:value = 'good.example']").unwrap();
+        let no = parse("[ipv4-addr:value = '1.1.1.1'] AND [domain-name:value = 'good.example']")
+            .unwrap();
         assert!(!eval_pattern(&no, &observations, None).unwrap().is_match());
     }
 
     #[test]
     fn followedby_is_unsupported() {
-        let observations =
-            vec![observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"})])];
-        let pattern = parse("[ipv4-addr:value = '1.1.1.1'] FOLLOWEDBY [ipv4-addr:value = '2.2.2.2']").unwrap();
+        let observations = vec![observation(vec![
+            serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"}),
+        ])];
+        let pattern =
+            parse("[ipv4-addr:value = '1.1.1.1'] FOLLOWEDBY [ipv4-addr:value = '2.2.2.2']")
+                .unwrap();
         let err = eval_pattern(&pattern, &observations, None).unwrap_err();
         assert!(matches!(err, crate::error::MatchError::Unsupported(_)));
     }
 
     #[test]
     fn qualifier_is_unsupported() {
-        let observations =
-            vec![observation(vec![serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"})])];
+        let observations = vec![observation(vec![
+            serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"}),
+        ])];
         let pattern = parse("[ipv4-addr:value = '1.1.1.1'] REPEATS 2 TIMES").unwrap();
         let err = eval_pattern(&pattern, &observations, None).unwrap_err();
         assert!(matches!(err, crate::error::MatchError::Unsupported(_)));

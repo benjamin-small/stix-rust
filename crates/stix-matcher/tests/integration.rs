@@ -23,8 +23,8 @@ fn non_match_returns_false() {
 #[test]
 fn matches_across_object_types_in_one_observation() {
     let b = bundle();
-    let p = parse("[ipv4-addr:value = '198.51.100.5' AND domain-name:value = 'evil.example']")
-        .unwrap();
+    let p =
+        parse("[ipv4-addr:value = '198.51.100.5' AND domain-name:value = 'evil.example']").unwrap();
     assert!(match_bundle(&p, &b).unwrap().is_match());
 }
 
@@ -53,9 +53,8 @@ fn matches_like_wildcard() {
 #[test]
 fn followedby_is_unsupported_end_to_end() {
     let b = bundle();
-    let p = parse(
-        "[ipv4-addr:value = '198.51.100.5'] FOLLOWEDBY [domain-name:value = 'evil.example']",
-    )
-    .unwrap();
+    let p =
+        parse("[ipv4-addr:value = '198.51.100.5'] FOLLOWEDBY [domain-name:value = 'evil.example']")
+            .unwrap();
     assert!(match_bundle(&p, &b).is_err());
 }

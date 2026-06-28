@@ -53,8 +53,8 @@ Reusability is the guiding principle: the crates have clean, minimal dependency 
 | -------------- | --------------------------------------------------- | ------------- |
 | `stix-pattern` | Lexer + parser for the patterning language → AST    | ✅ Available  |
 | `stix-model`   | Object model: values, objects, bundles, object store | ✅ Available  |
-| `stix-matcher` | Match a pattern AST against observed objects        | 🚧 In progress |
-| `stix`         | Umbrella crate re-exporting everything + entry points | 🚧 Planned    |
+| `stix-matcher` | Match a pattern AST against observed objects        | ✅ Available  |
+| `stix`         | Umbrella crate re-exporting everything + entry points | ✅ Available  |
 
 > **Alpha:** APIs may change before a `0.1` release. Crates are not yet published to [crates.io](https://crates.io); use a git or path dependency for now.
 
@@ -84,12 +84,21 @@ stix-rust/
 
 ## Installation
 
-Until the crates are published, depend on them by git:
+Until the crates are published, depend on them by git. The `stix` umbrella crate
+re-exports everything, so it's usually all you need:
+
+```toml
+[dependencies]
+stix = { git = "https://github.com/benjamin-small/stix-rust" }
+```
+
+Or pull in individual crates if you only need part of the toolkit:
 
 ```toml
 [dependencies]
 stix-pattern = { git = "https://github.com/benjamin-small/stix-rust" }
 stix-model   = { git = "https://github.com/benjamin-small/stix-rust" }
+stix-matcher = { git = "https://github.com/benjamin-small/stix-rust" }
 ```
 
 Or, if you've cloned the repo, by path:
@@ -167,18 +176,27 @@ for obj in &bundle.objects {
 }
 ```
 
-### Matching *(coming with `stix-matcher`)*
+### Match a pattern against observed objects
 
-The matcher will accept several entry points, all reducing to the same engine:
+The matcher accepts several entry points (observations, `observed-data` SDOs, a
+whole bundle, or a flat SCO list), all reducing to the same engine:
 
-```rust,ignore
-// Planned API — not yet available.
-use stix::{parse, match_bundle};
+```rust
+use stix::{parse, matcher::match_bundle};
+use stix::model::Bundle;
 
-let pattern = parse("[ipv4-addr:value = '198.51.100.5']")?;
-let result  = match_bundle(&pattern, &bundle)?;
-assert!(result.matched());
+let bundle = Bundle::from_json_str(raw).unwrap();
+let pattern = parse("[ipv4-addr:value = '198.51.100.5']").unwrap();
+
+let result = match_bundle(&pattern, &bundle).unwrap();
+assert!(result.is_match());
 ```
+
+Supported today: object-path resolution (including `_ref`/`_refs` dereferencing
+through the bundle), every comparison operator, boolean logic with correct
+"same object" binding within an observation, and observation-level `AND`/`OR`.
+`FOLLOWEDBY` and the temporal qualifiers parse but return
+`MatchError::Unsupported` rather than silently passing.
 
 ---
 
@@ -197,10 +215,10 @@ assert!(result.matched());
 | Qualifiers             | `WITHIN 60 SECONDS`, `REPEATS 5 TIMES`, `START t'…' STOP t'…'`           |
 
 > **Note on matching scope:** the parser understands the *entire* grammar today.
-> The forthcoming matcher implements single-observation comparison + boolean
-> matching first; `FOLLOWEDBY` sequencing and temporal qualifiers are parsed and
-> will return an explicit "unsupported" result rather than silently passing, until
-> their matching semantics land.
+> The matcher implements single-observation comparison + boolean matching and
+> observation-level `AND`/`OR`; `FOLLOWEDBY` sequencing and temporal qualifiers are
+> parsed but return an explicit `MatchError::Unsupported` result rather than
+> silently passing, until their matching semantics land.
 
 ---
 
@@ -261,8 +279,8 @@ conformance corpus of valid/invalid patterns under
 
 - [x] **`stix-pattern`** — lexer, full-grammar parser, serde AST, conformance corpus
 - [x] **`stix-model`** — `StixValue`, `ObjectView`, typed/generic objects, `Bundle`, `ObjectStore`, `SpecVersion`
-- [ ] **`stix-matcher`** — object-path resolution, all comparison operators, boolean logic, multiple entry points (observations / observed-data / bundle / SCO list)
-- [ ] **`stix`** — umbrella crate with high-level entry points
+- [x] **`stix-matcher`** — object-path resolution, all comparison operators, boolean logic, multiple entry points (observations / observed-data / bundle / SCO list)
+- [x] **`stix`** — umbrella crate with high-level entry points
 - [ ] `FOLLOWEDBY` sequencing + temporal-qualifier matching
 - [ ] STIX 2.0 support via the version seam
 - [ ] Consumer-injectable custom typed models (registry)
