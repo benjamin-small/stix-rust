@@ -10,3 +10,6 @@ description = "Umbrella crate for the stix-rust toolkit."
 stix-pattern = { workspace = true }
 stix-model = { workspace = true }
 stix-matcher = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
