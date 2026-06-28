@@ -87,9 +87,11 @@ impl From<serde_json::Value> for StixValue {
             }
             Value::String(s) => StixValue::String(s),
             Value::Array(arr) => StixValue::List(arr.into_iter().map(StixValue::from).collect()),
-            Value::Object(obj) => {
-                StixValue::Object(obj.into_iter().map(|(k, v)| (k, StixValue::from(v))).collect())
-            }
+            Value::Object(obj) => StixValue::Object(
+                obj.into_iter()
+                    .map(|(k, v)| (k, StixValue::from(v)))
+                    .collect(),
+            ),
         }
     }
 }
