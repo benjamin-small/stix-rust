@@ -2,6 +2,7 @@
 
 pub mod error;
 pub mod observation;
+pub mod resolve;
 pub mod result;
 
 pub use error::MatchError;
