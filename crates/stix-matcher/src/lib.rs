@@ -6,6 +6,7 @@ pub mod observation;
 pub mod pattern_ops;
 pub mod resolve;
 pub mod result;
+pub mod subset;
 
 pub use error::MatchError;
 pub use observation::Observation;
