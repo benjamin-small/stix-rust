@@ -1,0 +1,14 @@
+[package]
+name = "stix-pattern"
+version = "0.0.1"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Lexer and parser for the STIX 2.1 patterning language."
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
