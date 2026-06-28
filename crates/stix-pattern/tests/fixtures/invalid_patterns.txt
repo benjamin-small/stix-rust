@@ -1,0 +1,18 @@
+# Missing brackets
+ipv4-addr:value = '1.2.3.4'
+# Unterminated string
+[ipv4-addr:value = '1.2.3.4]
+# Missing operator
+[file:name 'x']
+# Missing object type
+[:value = 'x']
+# Bad qualifier (missing SECONDS)
+[file:name='a'] WITHIN 60
+# Trailing tokens
+[file:name='a'] [file:name='b']
+# Empty observation
+[]
+# Dangling AND
+[file:name='a'] AND
+# Unknown character
+[file:name = @]
