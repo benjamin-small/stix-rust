@@ -1,9 +1,14 @@
 //! Evaluation: leaf comparisons, comparison expressions, and observation expressions.
 
+use std::collections::BTreeMap;
+
 use stix_model::{ObjectStore, ObjectView, StixValue};
-use stix_pattern::ast::{Comparison, ComparisonOperand, ComparisonOperator, Literal};
+use stix_pattern::ast::{
+    Comparison, ComparisonExpression, ComparisonOperand, ComparisonOperator, Literal,
+};
 
 use crate::compare::{value_cmp_literal, value_eq_literal, value_in_set};
+use crate::observation::Observation;
 use crate::pattern_ops::{like_matches, regex_matches};
 use crate::resolve::resolve_path;
 use crate::subset::{is_subset, is_superset};
@@ -74,6 +79,105 @@ fn string_op(value: &StixValue, lit: &Literal, f: impl Fn(&str, &str) -> bool) -
         _ => return false,
     };
     f(v, l)
+}
+
+/// Evaluate a comparison expression against one observation using binding
+/// enumeration: each distinct referenced object-type is bound to one object of
+/// that type from the observation (or none); the expression matches if some
+/// binding makes the boolean tree true. This gives correct "same object" semantics
+/// for `AND` within an observation while staying cheap (observations are small).
+pub fn eval_comparison_expression(
+    expr: &ComparisonExpression,
+    observation: &Observation,
+    store: Option<&ObjectStore>,
+) -> bool {
+    // Distinct object types referenced anywhere in the expression.
+    let mut types: Vec<String> = Vec::new();
+    collect_types(expr, &mut types);
+
+    // Candidate objects per referenced type (indices into observation.objects).
+    let candidates: Vec<Vec<usize>> = types
+        .iter()
+        .map(|t| {
+            observation
+                .objects
+                .iter()
+                .enumerate()
+                .filter(|(_, o)| o.type_() == Some(t.as_str()))
+                .map(|(i, _)| i)
+                .collect()
+        })
+        .collect();
+
+    // Enumerate one choice per type (or `None` when a type has no candidate).
+    let mut binding: BTreeMap<String, usize> = BTreeMap::new();
+    enumerate_bindings(&types, &candidates, 0, &mut binding, &|binding| {
+        eval_tree(expr, observation, binding, store)
+    })
+}
+
+/// Recursively collect distinct object types referenced by an expression's leaves.
+fn collect_types(expr: &ComparisonExpression, out: &mut Vec<String>) {
+    match expr {
+        ComparisonExpression::Test(c) => {
+            if !out.contains(&c.path.object_type) {
+                out.push(c.path.object_type.clone());
+            }
+        }
+        ComparisonExpression::And(a, b) | ComparisonExpression::Or(a, b) => {
+            collect_types(a, out);
+            collect_types(b, out);
+        }
+    }
+}
+
+/// Try every assignment of one candidate object per type; return true as soon as
+/// `predicate` accepts a binding. Types with no candidates are simply absent from
+/// the binding map (their leaves evaluate to false).
+fn enumerate_bindings(
+    types: &[String],
+    candidates: &[Vec<usize>],
+    idx: usize,
+    binding: &mut BTreeMap<String, usize>,
+    predicate: &dyn Fn(&BTreeMap<String, usize>) -> bool,
+) -> bool {
+    if idx == types.len() {
+        return predicate(binding);
+    }
+    if candidates[idx].is_empty() {
+        // No object of this type; leave it unbound and continue.
+        return enumerate_bindings(types, candidates, idx + 1, binding, predicate);
+    }
+    for &obj_idx in &candidates[idx] {
+        binding.insert(types[idx].clone(), obj_idx);
+        if enumerate_bindings(types, candidates, idx + 1, binding, predicate) {
+            binding.remove(&types[idx]);
+            return true;
+        }
+    }
+    binding.remove(&types[idx]);
+    false
+}
+
+/// Evaluate the boolean tree under a fixed binding.
+fn eval_tree(
+    expr: &ComparisonExpression,
+    observation: &Observation,
+    binding: &BTreeMap<String, usize>,
+    store: Option<&ObjectStore>,
+) -> bool {
+    match expr {
+        ComparisonExpression::Test(c) => match binding.get(&c.path.object_type) {
+            Some(&obj_idx) => eval_comparison(&observation.objects[obj_idx], c, store),
+            None => false,
+        },
+        ComparisonExpression::And(a, b) => {
+            eval_tree(a, observation, binding, store) && eval_tree(b, observation, binding, store)
+        }
+        ComparisonExpression::Or(a, b) => {
+            eval_tree(a, observation, binding, store) || eval_tree(b, observation, binding, store)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -158,5 +262,87 @@ mod tests {
             ComparisonOperand::Literal(Literal::String("198.51.100.0/24".into())),
         );
         assert!(eval_comparison(&o, &c, None));
+    }
+
+    use crate::observation::Observation;
+    use stix_pattern::ast::ComparisonExpression;
+
+    fn observation(objs: Vec<serde_json::Value>) -> Observation {
+        Observation::new(objs.into_iter().map(obj).collect())
+    }
+
+    fn test_expr(c: Comparison) -> ComparisonExpression {
+        ComparisonExpression::Test(c)
+    }
+
+    #[test]
+    fn single_test_matches_some_object() {
+        let o = observation(vec![
+            serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.2.3.4"}),
+            serde_json::json!({"type": "domain-name", "id": "domain-name--1", "value": "evil.example"}),
+        ]);
+        let expr = test_expr(cmp(
+            "domain-name",
+            "value",
+            ComparisonOperator::Equal,
+            false,
+            lit("evil.example"),
+        ));
+        assert!(eval_comparison_expression(&expr, &o, None));
+    }
+
+    #[test]
+    fn and_requires_same_object_binding() {
+        // Two constraints on `file` must be satisfied by ONE file object.
+        let matching = observation(vec![
+            serde_json::json!({"type": "file", "id": "file--1", "name": "evil.exe", "size": 10}),
+        ]);
+        let split = observation(vec![
+            serde_json::json!({"type": "file", "id": "file--1", "name": "evil.exe", "size": 99}),
+            serde_json::json!({"type": "file", "id": "file--2", "name": "ok.txt", "size": 10}),
+        ]);
+        let expr = ComparisonExpression::And(
+            Box::new(test_expr(cmp(
+                "file",
+                "name",
+                ComparisonOperator::Equal,
+                false,
+                lit("evil.exe"),
+            ))),
+            Box::new(test_expr(cmp(
+                "file",
+                "size",
+                ComparisonOperator::Equal,
+                false,
+                ComparisonOperand::Literal(Literal::Integer(10)),
+            ))),
+        );
+        assert!(eval_comparison_expression(&expr, &matching, None));
+        // No single file is both name=evil.exe AND size=10, so this must not match.
+        assert!(!eval_comparison_expression(&expr, &split, None));
+    }
+
+    #[test]
+    fn or_matches_either_branch() {
+        let o = observation(vec![
+            serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.2.3.4"}),
+        ]);
+        let expr = ComparisonExpression::Or(
+            Box::new(test_expr(cmp(
+                "ipv4-addr",
+                "value",
+                ComparisonOperator::Equal,
+                false,
+                lit("9.9.9.9"),
+            ))),
+            Box::new(test_expr(cmp(
+                "ipv4-addr",
+                "value",
+                ComparisonOperator::Equal,
+                false,
+                lit("1.2.3.4"),
+            ))),
+        );
+        assert!(eval_comparison_expression(&expr, &o, None));
     }
 }
