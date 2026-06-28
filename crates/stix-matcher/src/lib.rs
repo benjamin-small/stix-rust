@@ -2,6 +2,7 @@
 
 pub mod compare;
 pub mod error;
+pub mod eval;
 pub mod observation;
 pub mod pattern_ops;
 pub mod resolve;
