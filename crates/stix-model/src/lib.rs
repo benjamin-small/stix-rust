@@ -16,4 +16,4 @@ pub use sdo::ObservedData;
 pub use store::ObjectStore;
 pub use value::StixValue;
 pub use version::SpecVersion;
-pub use view::{GenericObject, ObjectView};
+pub use view::{CustomObject, GenericObject, ObjectView};
