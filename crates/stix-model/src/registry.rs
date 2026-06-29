@@ -1,7 +1,34 @@
 //! `ModelRegistry`: register consumer-supplied handling for STIX object types.
+//!
+//! # Example: validate and add a computed property
+//!
+//! ```
+//! use stix_model::ModelRegistry;
+//!
+//! let mut registry = ModelRegistry::new();
+//! registry.register_handler("x-acme-widget", |mut obj| {
+//!     let score = obj.get("risk_score").and_then(|v| v.as_i64()).unwrap_or(0);
+//!     obj["risk_band"] = serde_json::json!(if score > 80 { "high" } else { "low" });
+//!     Ok(obj)
+//! });
+//!
+//! let bundle = registry
+//!     .parse_bundle(r#"{"type":"bundle","objects":[
+//!         {"type":"x-acme-widget","id":"x-acme-widget--1","risk_score":90}
+//!     ]}"#)
+//!     .unwrap();
+//!
+//! use stix_model::ObjectView;
+//! assert_eq!(
+//!     bundle.objects[0].property("risk_band"),
+//!     Some(stix_model::StixValue::String("high".into()))
+//! );
+//! ```
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::bundle::Bundle;
@@ -44,6 +71,23 @@ impl ModelRegistry {
             Box::new(move |value| {
                 let normalized = hook(value)?;
                 Ok(StixObject::Generic(GenericObject::from_json(normalized)?))
+            }),
+        );
+    }
+
+    /// Register a typed Rust struct for `type_name`. Objects of that type
+    /// deserialize into `T` and are stored as [`StixObject::Custom`], retrievable
+    /// with [`StixObject::downcast_ref`]. `T` only needs to implement
+    /// [`ObjectView`](crate::view::ObjectView) (plus `Serialize`/`Deserialize`).
+    pub fn register<T>(&mut self, type_name: impl Into<String>)
+    where
+        T: DeserializeOwned + crate::view::CustomObject + 'static,
+    {
+        self.handlers.insert(
+            type_name.into(),
+            Box::new(|value| {
+                let obj: T = serde_json::from_value(value)?;
+                Ok(StixObject::Custom(Arc::new(obj)))
             }),
         );
     }
@@ -184,5 +228,54 @@ mod tests {
             .parse_bundle(r#"{"type":"ipv4-addr","id":"x--1"}"#)
             .unwrap_err();
         assert!(matches!(err, ModelError::NotABundle(_)));
+    }
+
+    use crate::value::StixValue;
+
+    #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    struct Widget {
+        #[serde(rename = "type")]
+        type_: String,
+        id: String,
+        risk: i64,
+    }
+
+    impl ObjectView for Widget {
+        fn id(&self) -> Option<&str> {
+            Some(&self.id)
+        }
+        fn type_(&self) -> Option<&str> {
+            Some(&self.type_)
+        }
+        fn property(&self, name: &str) -> Option<StixValue> {
+            match name {
+                "risk" => Some(StixValue::Integer(self.risk)),
+                _ => None,
+            }
+        }
+    }
+
+    #[test]
+    fn register_typed_yields_custom_and_downcasts() {
+        let mut reg = ModelRegistry::new();
+        reg.register::<Widget>("x-widget");
+        let parsed = reg
+            .parse_object(serde_json::json!({"type":"x-widget","id":"x-widget--1","risk":90}))
+            .unwrap();
+        assert!(matches!(parsed, StixObject::Custom(_)));
+        assert_eq!(parsed.property("risk"), Some(StixValue::Integer(90)));
+        let w = parsed.downcast_ref::<Widget>().expect("downcast");
+        assert_eq!(w.risk, 90);
+    }
+
+    #[test]
+    fn registered_handler_overrides_builtin() {
+        // A consumer may even override a core type's dispatch.
+        let mut reg = ModelRegistry::new();
+        reg.register::<Widget>("observed-data");
+        let parsed = reg
+            .parse_object(serde_json::json!({"type":"observed-data","id":"x--1","risk":7}))
+            .unwrap();
+        assert!(matches!(parsed, StixObject::Custom(_)));
     }
 }
