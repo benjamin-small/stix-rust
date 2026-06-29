@@ -129,11 +129,7 @@ impl ModelRegistry {
                 .collect::<Result<Vec<_>>>()?,
             _ => Vec::new(),
         };
-        Ok(Bundle {
-            type_,
-            id,
-            objects,
-        })
+        Ok(Bundle { type_, id, objects })
     }
 }
 
@@ -189,7 +185,10 @@ mod tests {
                 "number_observed":1,"object_refs":[]
             }))
             .unwrap();
-        assert!(matches!(od, StixObject::Typed(TypedObject::ObservedData(_))));
+        assert!(matches!(
+            od,
+            StixObject::Typed(TypedObject::ObservedData(_))
+        ));
         // Unknown types fall back to Generic.
         let g = reg
             .parse_object(
