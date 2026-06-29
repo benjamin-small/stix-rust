@@ -82,6 +82,20 @@ stix-rust/
 
 ---
 
+## Language interfaces
+
+The Rust crates are the core. Language bindings (in progress) live under
+[`bindings/`](bindings/) — each has self-contained docs you can link to directly:
+
+| Interface | Toolchain | Docs | Status |
+| --- | --- | --- | --- |
+| Python | PyO3 + maturin | [`bindings/python`](bindings/python/README.md) | 🚧 planned |
+| Java | jni-rs | [`bindings/java`](bindings/java/README.md) | 🚧 planned |
+| TypeScript (Node) | napi-rs | [`bindings/typescript-node`](bindings/typescript-node/README.md) | 🚧 planned |
+| TypeScript (wasm) | wasm-bindgen | [`bindings/typescript-wasm`](bindings/typescript-wasm/README.md) | 🚧 planned |
+
+Contributor and agent conventions are documented in [`AGENTS.md`](AGENTS.md).
+
 ## Installation
 
 Until the crates are published, depend on them by git. The `stix` umbrella crate

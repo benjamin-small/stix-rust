@@ -1,0 +1,30 @@
+name: Bug
+description: Something is broken in a specific area
+title: "[bug] "
+labels: ["type:bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which area is affected? (The parent will apply the matching area label.)
+      options:
+        - rust-core
+        - python
+        - java
+        - ts-node
+        - ts-wasm
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true

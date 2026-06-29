@@ -1,0 +1,30 @@
+name: Task
+description: A unit of work in a specific area
+title: "[task] "
+labels: ["type:feat"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which area owns this work? (The parent will apply the matching area label.)
+      options:
+        - rust-core
+        - python
+        - java
+        - ts-node
+        - ts-wasm
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What needs to be done
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
