@@ -247,6 +247,82 @@ implementation plans in [`docs/superpowers/plans/`](docs/superpowers/plans/).
 
 ---
 
+## Custom object types
+
+Custom and unknown STIX types already parse and match out of the box (they become a
+generic value-backed object). When you want **typed access**, **validation**, or
+**computed properties**, register them with a `ModelRegistry`.
+
+### Rust — typed structs
+
+```rust
+use serde::{Deserialize, Serialize};
+use stix::model::{ModelRegistry, ObjectView, StixValue};
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AcmeWidget { #[serde(rename = "type")] type_: String, id: String, risk_score: i64 }
+
+impl ObjectView for AcmeWidget {
+    fn id(&self) -> Option<&str> { Some(&self.id) }
+    fn type_(&self) -> Option<&str> { Some(&self.type_) }
+    fn property(&self, name: &str) -> Option<StixValue> {
+        match name {
+            "risk_score" => Some(StixValue::Integer(self.risk_score)),
+            // computed property, resolved on demand
+            "risk_band" => Some(StixValue::String(
+                if self.risk_score > 80 { "high" } else { "low" }.into())),
+            _ => None,
+        }
+    }
+}
+
+let mut registry = ModelRegistry::new();
+registry.register::<AcmeWidget>("x-acme-widget");
+let bundle = registry.parse_bundle(json).unwrap();
+
+// Typed access after parsing:
+if let Some(w) = bundle.objects[0].downcast_ref::<AcmeWidget>() { /* w.risk_score */ }
+```
+
+A runnable version lives in [`crates/stix/examples/custom_model.rs`](crates/stix/examples/custom_model.rs)
+— `cargo run -p stix --example custom_model`.
+
+### Rust — data-level validate/normalize hook
+
+For validation or computed properties without a struct, register a
+`Value -> Result<Value>` hook. It runs once per object at import; the result is
+stored as data, so matching stays callback-free:
+
+```rust
+registry.register_handler("x-acme-widget", |mut obj| {
+    if obj.get("risk_score").is_none() {
+        return Err(stix::model::ModelError::InvalidObject("missing risk_score".into()));
+    }
+    let score = obj["risk_score"].as_i64().unwrap_or(0);
+    obj["risk_band"] = serde_json::json!(if score > 80 { "high" } else { "low" });
+    Ok(obj)
+});
+```
+
+### TypeScript / Python (planned bindings)
+
+You won't define a Rust struct from a binding. Typed access is native to the host
+language (define a TS `interface`/Python class over the parsed object), and custom
+types match with no registration at all. For validation or computed properties you
+register the same import-time hook — a host function the core invokes once per
+object at parse time:
+
+```ts
+stix.registerType("x-acme-widget", {
+  normalize(obj) {
+    if (!obj.risk_score) throw new Error("missing risk_score");
+    return { ...obj, risk_band: obj.risk_score > 80 ? "high" : "low" };
+  },
+});
+```
+
+---
+
 ## Development
 
 Requires a recent stable Rust toolchain (developed against Rust 1.95).
@@ -283,7 +359,7 @@ conformance corpus of valid/invalid patterns under
 - [x] **`stix`** — umbrella crate with high-level entry points
 - [ ] `FOLLOWEDBY` sequencing + temporal-qualifier matching
 - [ ] STIX 2.0 support via the version seam
-- [ ] Consumer-injectable custom typed models (registry)
+- [x] Consumer-injectable custom typed models (registry)
 - [ ] Python (PyO3) and TypeScript (wasm/napi) bindings
 
 ---
