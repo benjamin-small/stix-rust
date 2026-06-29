@@ -3,16 +3,20 @@
 use serde::de::{Deserialize, Deserializer, Error as DeError};
 use serde::Serialize;
 
+use std::sync::Arc;
+
 use crate::error::{ModelError, Result};
 use crate::sdo::ObservedData;
 use crate::value::StixValue;
-use crate::view::{GenericObject, ObjectView};
+use crate::view::{CustomObject, GenericObject, ObjectView};
 
-/// A STIX object: either a recognized typed object or a generic value bag.
-#[derive(Debug, Clone, PartialEq)]
+/// A STIX object: a recognized typed object, a generic value bag, or a
+/// consumer-registered custom object.
+#[derive(Debug, Clone)]
 pub enum StixObject {
     Typed(TypedObject),
     Generic(GenericObject),
+    Custom(Arc<dyn CustomObject>),
 }
 
 /// The set of types with dedicated typed structs. Additive: new variants slot in
@@ -39,6 +43,25 @@ impl StixObject {
             _ => Ok(StixObject::Generic(GenericObject::from_json(value)?)),
         }
     }
+
+    /// If this is a registered custom object of concrete type `T`, borrow it.
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        match self {
+            StixObject::Custom(c) => c.as_any().downcast_ref::<T>(),
+            _ => None,
+        }
+    }
+}
+
+impl PartialEq for StixObject {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (StixObject::Typed(a), StixObject::Typed(b)) => a == b,
+            (StixObject::Generic(a), StixObject::Generic(b)) => a == b,
+            (StixObject::Custom(a), StixObject::Custom(b)) => a.as_json() == b.as_json(),
+            _ => false,
+        }
+    }
 }
 
 impl ObjectView for StixObject {
@@ -46,6 +69,7 @@ impl ObjectView for StixObject {
         match self {
             StixObject::Typed(t) => t.id(),
             StixObject::Generic(g) => g.id(),
+            StixObject::Custom(c) => c.id(),
         }
     }
 
@@ -53,6 +77,7 @@ impl ObjectView for StixObject {
         match self {
             StixObject::Typed(t) => t.type_(),
             StixObject::Generic(g) => g.type_(),
+            StixObject::Custom(c) => c.type_(),
         }
     }
 
@@ -60,6 +85,7 @@ impl ObjectView for StixObject {
         match self {
             StixObject::Typed(t) => t.property(name),
             StixObject::Generic(g) => g.property(name),
+            StixObject::Custom(c) => c.property(name),
         }
     }
 }
@@ -92,6 +118,7 @@ impl Serialize for StixObject {
         match self {
             StixObject::Typed(TypedObject::ObservedData(od)) => od.serialize(serializer),
             StixObject::Generic(g) => g.properties().serialize(serializer),
+            StixObject::Custom(c) => c.as_json().serialize(serializer),
         }
     }
 }
@@ -162,5 +189,69 @@ mod tests {
         });
         let obj: StixObject = serde_json::from_value(v).unwrap();
         assert_eq!(obj.id(), Some("ipv4-addr--2"));
+    }
+
+    use std::sync::Arc;
+
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+    struct Widget {
+        #[serde(rename = "type")]
+        type_: String,
+        id: String,
+        risk: i64,
+    }
+
+    impl ObjectView for Widget {
+        fn id(&self) -> Option<&str> {
+            Some(&self.id)
+        }
+        fn type_(&self) -> Option<&str> {
+            Some(&self.type_)
+        }
+        fn property(&self, name: &str) -> Option<StixValue> {
+            match name {
+                "type" => Some(StixValue::String(self.type_.clone())),
+                "id" => Some(StixValue::String(self.id.clone())),
+                "risk" => Some(StixValue::Integer(self.risk)),
+                _ => None,
+            }
+        }
+    }
+
+    fn widget(risk: i64) -> StixObject {
+        StixObject::Custom(Arc::new(Widget {
+            type_: "x-widget".into(),
+            id: "x-widget--1".into(),
+            risk,
+        }))
+    }
+
+    #[test]
+    fn custom_exposes_object_view() {
+        let o = widget(90);
+        assert_eq!(o.type_(), Some("x-widget"));
+        assert_eq!(o.id(), Some("x-widget--1"));
+        assert_eq!(o.property("risk"), Some(StixValue::Integer(90)));
+        assert_eq!(o.property("missing"), None);
+    }
+
+    #[test]
+    fn custom_downcasts_to_concrete_type() {
+        let o = widget(90);
+        let w = o.downcast_ref::<Widget>().expect("downcast");
+        assert_eq!(w.risk, 90);
+        // Wrong target type yields None.
+        assert!(o.downcast_ref::<String>().is_none());
+        // Non-custom objects yield None.
+        let generic = StixObject::from_json(serde_json::json!({"type":"x","id":"x--1"})).unwrap();
+        assert!(generic.downcast_ref::<Widget>().is_none());
+    }
+
+    #[test]
+    fn custom_clone_and_eq_and_serialize() {
+        assert_eq!(widget(90), widget(90));
+        assert_ne!(widget(90), widget(10));
+        let json = serde_json::to_value(widget(90)).unwrap();
+        assert_eq!(json["risk"], serde_json::json!(90));
     }
 }
