@@ -14,7 +14,9 @@ fn full_surface_round_trip() {
     let engine = Engine::new();
 
     // Pattern handle -> AST JSON.
-    let pattern = engine.parse_pattern("[ipv4-addr:value = '198.51.100.5']").unwrap();
+    let pattern = engine
+        .parse_pattern("[ipv4-addr:value = '198.51.100.5']")
+        .unwrap();
     let ast = pattern.to_json();
     assert!(ast.contains("ipv4-addr"));
 
@@ -32,7 +34,10 @@ fn full_surface_round_trip() {
 #[test]
 fn error_codes_surface() {
     let engine = Engine::new();
-    assert_eq!(engine.parse_pattern("[bad").unwrap_err().code, ErrorCode::Parse);
+    assert_eq!(
+        engine.parse_pattern("[bad").unwrap_err().code,
+        ErrorCode::Parse
+    );
     assert_eq!(
         engine.parse_bundle("not json").unwrap_err().code,
         ErrorCode::Model

@@ -96,7 +96,9 @@ mod tests {
             }),
         );
         let bundle = engine.parse_bundle(custom_bundle_json()).unwrap();
-        let pattern = engine.parse_pattern("[x-acme-widget:risk_band = 'high']").unwrap();
+        let pattern = engine
+            .parse_pattern("[x-acme-widget:risk_band = 'high']")
+            .unwrap();
         assert!(engine.match_bundle(&pattern, &bundle).unwrap().matched);
     }
 
@@ -113,9 +115,7 @@ mod tests {
             }),
         );
         let err = engine
-            .parse_bundle(
-                r#"{"type":"bundle","objects":[{"type":"x-acme-widget","id":"x--1"}]}"#,
-            )
+            .parse_bundle(r#"{"type":"bundle","objects":[{"type":"x-acme-widget","id":"x--1"}]}"#)
             .unwrap_err();
         assert_eq!(err.code, Code::Validation);
         assert!(err.message.contains("missing risk_score"));
@@ -133,7 +133,9 @@ mod tests {
     #[test]
     fn parse_pattern_ok_and_err() {
         let engine = Engine::new();
-        assert!(engine.parse_pattern("[ipv4-addr:value = '1.2.3.4']").is_ok());
+        assert!(engine
+            .parse_pattern("[ipv4-addr:value = '1.2.3.4']")
+            .is_ok());
         let err = engine.parse_pattern("[bad").unwrap_err();
         assert_eq!(err.code, ErrorCode::Parse);
     }
@@ -153,11 +155,15 @@ mod tests {
         let engine = Engine::new();
         let bundle = engine.parse_bundle(bundle_json()).unwrap();
 
-        let hit = engine.parse_pattern("[ipv4-addr:value = '198.51.100.5']").unwrap();
+        let hit = engine
+            .parse_pattern("[ipv4-addr:value = '198.51.100.5']")
+            .unwrap();
         let outcome = engine.match_bundle(&hit, &bundle).unwrap();
         assert!(outcome.matched);
 
-        let miss = engine.parse_pattern("[ipv4-addr:value = '203.0.113.9']").unwrap();
+        let miss = engine
+            .parse_pattern("[ipv4-addr:value = '203.0.113.9']")
+            .unwrap();
         assert!(!engine.match_bundle(&miss, &bundle).unwrap().matched);
     }
 }
