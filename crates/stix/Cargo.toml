@@ -12,4 +12,5 @@ stix-model = { workspace = true }
 stix-matcher = { workspace = true }
 
 [dev-dependencies]
+serde = { workspace = true }
 serde_json = { workspace = true }

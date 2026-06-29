@@ -1,6 +1,9 @@
 //! The `ObjectView` trait and the generic value-backed object.
 
+use std::any::Any;
 use std::collections::BTreeMap;
+
+use serde::Serialize;
 
 use crate::error::{ModelError, Result};
 use crate::value::StixValue;
@@ -14,6 +17,29 @@ pub trait ObjectView {
     fn id(&self) -> Option<&str>;
     fn type_(&self) -> Option<&str>;
     fn property(&self, name: &str) -> Option<StixValue>;
+}
+
+/// A consumer-supplied object type that the matcher can view uniformly.
+///
+/// Blanket-implemented for any [`ObjectView`] that is also `Serialize`, so a
+/// consumer only writes an `ObjectView` impl. `as_json` backs serialization and
+/// equality; `as_any` enables downcasting back to the concrete type.
+pub trait CustomObject: ObjectView + std::fmt::Debug + Send + Sync {
+    fn as_json(&self) -> serde_json::Value;
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T> CustomObject for T
+where
+    T: ObjectView + Serialize + std::fmt::Debug + Send + Sync + 'static,
+{
+    fn as_json(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 /// A STIX object stored as a flat property map. Used for any object type without
@@ -89,5 +115,41 @@ mod tests {
     fn rejects_non_object_json() {
         let err = GenericObject::from_json(serde_json::json!([1, 2, 3])).unwrap_err();
         assert!(matches!(err, crate::error::ModelError::InvalidObject(_)));
+    }
+
+    #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    struct TestWidget {
+        #[serde(rename = "type")]
+        type_: String,
+        id: String,
+        risk: i64,
+    }
+
+    impl ObjectView for TestWidget {
+        fn id(&self) -> Option<&str> {
+            Some(&self.id)
+        }
+        fn type_(&self) -> Option<&str> {
+            Some(&self.type_)
+        }
+        fn property(&self, name: &str) -> Option<StixValue> {
+            match name {
+                "risk" => Some(StixValue::Integer(self.risk)),
+                _ => None,
+            }
+        }
+    }
+
+    #[test]
+    fn custom_object_blanket_impl_provides_json_and_any() {
+        let w = TestWidget {
+            type_: "x-widget".into(),
+            id: "x-widget--1".into(),
+            risk: 90,
+        };
+        // Blanket impl gives `as_json` and `as_any` for free.
+        let json = CustomObject::as_json(&w);
+        assert_eq!(json["risk"], serde_json::json!(90));
+        assert!(w.as_any().downcast_ref::<TestWidget>().is_some());
     }
 }
