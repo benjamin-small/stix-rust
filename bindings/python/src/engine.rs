@@ -41,4 +41,27 @@ impl Engine {
             observations: outcome.observations,
         })
     }
+
+    /// Register a custom object type. `hook` is a callable `dict -> dict`: it may
+    /// mutate/return the object (adding computed properties) or raise to reject it
+    /// (surfaced as ValidationError from parse_bundle). Runs only at parse time.
+    fn register_type(&mut self, type_name: &str, hook: Py<PyAny>) {
+        self.inner.register_type(
+            type_name,
+            Box::new(move |value: serde_json::Value| {
+                Python::attach(|py| {
+                    // Value -> Python dict
+                    let arg = pythonize::pythonize(py, &value).map_err(|e| e.to_string())?;
+                    // call the Python hook
+                    let result = hook
+                        .call1(py, (arg,))
+                        .map_err(|e| e.value(py).to_string())?;
+                    // returned dict -> Value
+                    let out: serde_json::Value =
+                        pythonize::depythonize(result.bind(py)).map_err(|e| e.to_string())?;
+                    Ok(out)
+                })
+            }),
+        );
+    }
 }
