@@ -1,0 +1,15 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "stix-rust"
+requires-python = ">=3.8"
+description = "Python bindings for the stix-rust toolkit (parse, import, match STIX 2.1)."
+license = { text = "MIT OR Apache-2.0" }
+dynamic = ["version"]
+
+[tool.maturin]
+module-name = "stix._stix"
+python-source = "python"
+features = ["pyo3/extension-module"]
