@@ -1,32 +1,44 @@
 # stix-rust — TypeScript binding (Node)
 
-> **Status: planned.** This area is scaffolded; the binding is not yet implemented.
+Native Node.js bindings for the [stix-rust](../../README.md) toolkit, via napi-rs.
 
-Native Node.js bindings for the [stix-rust](../../README.md) toolkit.
+- **Package:** `@stix-rust/node`
+- **Surface:** typed handles (`Engine`, `Pattern`, `Bundle`, `MatchResult`); deep
+  structure (AST, objects) as native JS objects; `StixError` hierarchy.
 
-- **Toolchain:** [napi-rs](https://napi.rs) + npm (prebuilt native addon)
-- **Surface:** typed handles (`Engine`, `Pattern`, `Bundle`, `MatchResult`) with JSON
-  for deep structure, wrapping the `stix-ffi` facade.
-- **Owner agent:** `typescript-node-binding`
-- **Sibling:** a portable WebAssembly build lives in
-  [`../typescript-wasm`](../typescript-wasm/README.md); both expose the same TS API
-  shape.
+## Build & test
 
-## Planned usage
+```bash
+cd bindings/typescript-node
+npm install
+npm run build      # native addon + TypeScript wrapper -> dist/
+npm test           # vitest
+```
+
+## Usage
 
 ```ts
 import { Engine } from "@stix-rust/node";
 
 const engine = new Engine();
-const pattern = engine.parsePattern("[ipv4-addr:value = '198.51.100.1']");
+const pattern = engine.parsePattern("[ipv4-addr:value = '198.51.100.5']");
+console.log(pattern.ast);                     // AST as an object
+
 const bundle = engine.parseBundle(json);
-console.log(engine.matchBundle(pattern, bundle).matched);
+console.log(bundle.objectCount(), [...bundle].map((o) => o.type));
+
+const result = engine.matchBundle(pattern, bundle);
+console.log(result.matched, result.observations);
 ```
 
-## Build & test (once implemented)
+### Custom object types
 
-```bash
-npm install
-npm run build      # napi build
-npm test
+```ts
+engine.registerType("x-acme-widget", (obj) => ({
+  ...obj,
+  risk_band: obj.risk_score > 80 ? "high" : "low",
+}));
 ```
+
+Hooks run at `parseBundle` time; throwing raises `ValidationError`. Errors are
+`StixError` subclasses: `ParseError`, `ModelError`, `MatchError`, `ValidationError`.
