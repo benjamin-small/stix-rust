@@ -1,0 +1,19 @@
+{
+  "name": "@stix-rust/node",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "napi": { "name": "stix-node" },
+  "files": ["dist", "*.node"],
+  "scripts": {
+    "build:native": "napi build --platform --release --js binding.js --dts binding.d.ts",
+    "build:ts": "tsc",
+    "build": "npm run build:native && npm run build:ts",
+    "test": "napi build --platform --js binding.js --dts binding.d.ts && tsc && vitest run"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  }
+}
