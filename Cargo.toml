@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/stix-pattern", "crates/stix-model", "crates/stix-matcher", "crates/stix", "crates/stix-ffi"]
+exclude = ["bindings/python"]
 
 [workspace.package]
 edition = "2021"
