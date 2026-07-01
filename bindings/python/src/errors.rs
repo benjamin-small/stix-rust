@@ -4,7 +4,12 @@ use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use stix_ffi::{ErrorCode, FfiError};
 
-create_exception!(_stix, StixError, PyException, "Base class for all stix errors.");
+create_exception!(
+    _stix,
+    StixError,
+    PyException,
+    "Base class for all stix errors."
+);
 create_exception!(_stix, ParseError, StixError, "Pattern failed to parse.");
 create_exception!(_stix, ModelError, StixError, "Object/bundle import failed.");
 create_exception!(_stix, MatchError, StixError, "Matching failed.");
