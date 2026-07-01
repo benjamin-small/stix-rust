@@ -1,0 +1,17 @@
+{
+  "name": "@stix-rust/wasm",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "pkg"],
+  "scripts": {
+    "build:wasm": "wasm-pack build --target nodejs --out-dir pkg",
+    "build:web": "wasm-pack build --target web --out-dir pkg-web",
+    "build": "npm run build:wasm && tsc",
+    "test": "npm run build:wasm && tsc && vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  }
+}
