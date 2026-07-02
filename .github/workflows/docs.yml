@@ -1,0 +1,47 @@
+name: docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install mdbook + mermaid
+        run: cargo install mdbook mdbook-mermaid --locked
+      - name: Build book
+        run: mdbook build docs/book
+      - name: Build API docs
+        run: cargo doc --workspace --no-deps
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          cp -r docs/book/book/* site/
+          mkdir -p site/api
+          cp -r target/doc/* site/api/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
