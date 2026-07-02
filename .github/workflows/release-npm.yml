@@ -54,6 +54,13 @@ jobs:
       - run: npx napi create-npm-dir -t .
       - run: npx napi artifacts
       - run: npx napi build --platform --js binding.js --dts binding.d.ts && npx tsc
+      # Smoke-test the packed artifact: the loader must actually ship
+      - name: Verify tarball contents
+        run: |
+          tarball=$(npm pack --silent)
+          tar -tzf "$tarball" | grep -q "package/binding.js" || { echo "binding.js missing from tarball"; exit 1; }
+          tar -tzf "$tarball" | grep -q "package/dist/index.js" || { echo "dist missing from tarball"; exit 1; }
+          rm "$tarball"
       - run: npx napi prepublish -t npm --skip-gh-release
         env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
       - name: Publish (skip if version already live)
@@ -77,6 +84,13 @@ jobs:
       - run: cargo install wasm-pack --locked
       - run: npm install
       - run: npm run build
+      # Smoke-test the packed artifact: wasm-pack's pkg/.gitignore must not exclude pkg/
+      - name: Verify tarball contents
+        run: |
+          tarball=$(npm pack --silent)
+          tar -tzf "$tarball" | grep -q "package/pkg/stix_wasm.js" || { echo "pkg/ missing from tarball"; exit 1; }
+          tar -tzf "$tarball" | grep -q "package/dist/index.js" || { echo "dist missing from tarball"; exit 1; }
+          rm "$tarball"
       - name: Publish (skip if version already live)
         run: |
           VERSION=$(node -p "require('./package.json').version")

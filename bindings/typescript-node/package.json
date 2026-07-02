@@ -1,6 +1,6 @@
 {
   "name": "@stix-rust/node",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "napi": {
@@ -16,7 +16,8 @@
   },
   "files": [
     "dist",
-    "*.node"
+    "binding.js",
+    "binding.d.ts"
   ],
   "scripts": {
     "build:native": "napi build --platform --release --js binding.js --dts binding.d.ts",
@@ -31,5 +32,10 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "optionalDependencies": {
+    "@stix-rust/node-linux-x64-gnu": "0.1.1",
+    "@stix-rust/node-darwin-arm64": "0.1.1",
+    "@stix-rust/node-win32-x64-msvc": "0.1.1"
   }
 }
