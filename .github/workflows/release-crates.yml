@@ -20,6 +20,13 @@ jobs:
         run: |
           set -euo pipefail
           for crate in stix-pattern stix-model stix-matcher stix-rust stix-ffi; do
+            version=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.name==\"$crate\") | .version")
+            # idempotent retry: skip crates whose version is already on the index
+            if curl -sf -A "stix-rust-release (github actions)" \
+                 "https://crates.io/api/v1/crates/${crate}/${version}" >/dev/null 2>&1; then
+              echo "$crate@$version already published — skipping"
+              continue
+            fi
             echo "::group::publish $crate"
             cargo publish -p "$crate" --no-verify
             echo "::endgroup::"
