@@ -14,8 +14,11 @@ use crate::value::StixValue;
 /// values on demand without storing every field twice. The matcher consumes only
 /// this trait, so it never needs to branch on typed vs. generic objects.
 pub trait ObjectView {
+    /// The object's STIX id, if it has one.
     fn id(&self) -> Option<&str>;
+    /// The object's STIX type, if it has one.
     fn type_(&self) -> Option<&str>;
+    /// The named top-level property as an owned value, or `None` if absent.
     fn property(&self, name: &str) -> Option<StixValue>;
 }
 
@@ -25,7 +28,9 @@ pub trait ObjectView {
 /// consumer only writes an `ObjectView` impl. `as_json` backs serialization and
 /// equality; `as_any` enables downcasting back to the concrete type.
 pub trait CustomObject: ObjectView + std::fmt::Debug + Send + Sync {
+    /// The object serialized as a JSON value.
     fn as_json(&self) -> serde_json::Value;
+    /// The object as `&dyn Any`, for downcasting to the concrete type.
     fn as_any(&self) -> &dyn Any;
 }
 

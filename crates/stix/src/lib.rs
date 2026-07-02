@@ -17,6 +17,8 @@
 //! assert!(match_scos(&pattern, &[sco]).unwrap().is_match());
 //! ```
 
+#![warn(missing_docs)]
+
 pub use stix_matcher as matcher;
 pub use stix_model as model;
 pub use stix_pattern as pattern;

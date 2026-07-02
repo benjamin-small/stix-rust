@@ -3,20 +3,27 @@
 /// A coarse category each binding maps to its own exception type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
+    /// The pattern failed to lex or parse.
     Parse,
+    /// A STIX object or bundle failed to deserialize or validate.
     Model,
+    /// Pattern evaluation failed (e.g. an unsupported feature).
     Match,
+    /// An input failed facade-level validation.
     Validation,
 }
 
 /// A flat, FFI-friendly error: a category plus a human-readable message.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FfiError {
+    /// The error's coarse category.
     pub code: ErrorCode,
+    /// A human-readable description of what went wrong.
     pub message: String,
 }
 
 impl FfiError {
+    /// Creates an error from a category and message.
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         FfiError {
             code,

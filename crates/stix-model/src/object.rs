@@ -14,8 +14,11 @@ use crate::view::{CustomObject, GenericObject, ObjectView};
 /// consumer-registered custom object.
 #[derive(Debug, Clone)]
 pub enum StixObject {
+    /// A recognized type with a dedicated struct.
     Typed(TypedObject),
+    /// Any other type, stored as a flat property map.
     Generic(GenericObject),
+    /// A consumer-registered custom object.
     Custom(Arc<dyn CustomObject>),
 }
 
@@ -23,6 +26,7 @@ pub enum StixObject {
 /// here and in [`StixObject::from_json`]'s dispatch.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypedObject {
+    /// The STIX `observed-data` SDO.
     ObservedData(ObservedData),
 }
 

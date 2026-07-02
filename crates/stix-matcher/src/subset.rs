@@ -65,7 +65,9 @@ fn network_subset(a: &Network, b: &Network) -> bool {
     a.prefix >= b.prefix && masked(a.bits, b.prefix) == masked(b.bits, b.prefix)
 }
 
-/// STIX `ISSUBSET`: is the address/range `value` a subset of `range`?
+/// Returns true if `value` (an IP address or CIDR range) is contained within
+/// `range` (the `ISSUBSET` operator). IPv4/IPv6 only; mixed families and
+/// unparseable inputs never match.
 pub fn is_subset(value: &str, range: &str) -> bool {
     match (parse_network(value), parse_network(range)) {
         (Some(a), Some(b)) => network_subset(&a, &b),
@@ -73,7 +75,8 @@ pub fn is_subset(value: &str, range: &str) -> bool {
     }
 }
 
-/// STIX `ISSUPERSET`: is `value` a superset of `range`? (i.e. `range` ⊆ `value`)
+/// Returns true if `value` contains `range` (the `ISSUPERSET` operator) — the
+/// inverse of [`is_subset`].
 pub fn is_superset(value: &str, range: &str) -> bool {
     is_subset(range, value)
 }

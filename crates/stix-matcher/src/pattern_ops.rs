@@ -2,9 +2,11 @@
 
 use regex::Regex;
 
-/// STIX `LIKE`: `%` matches any run of characters, `_` matches exactly one. All
-/// other characters match literally. Implemented by translating to an anchored
-/// regex with every non-wildcard character escaped.
+/// Tests whether `value` matches the SQL-style `LIKE` pattern.
+///
+/// `%` matches any run of characters and `_` exactly one; all other characters are
+/// literal. The pattern is anchored (must match the whole value). An invalid
+/// translation never matches.
 pub fn like_matches(value: &str, pattern: &str) -> bool {
     let mut regex = String::with_capacity(pattern.len() * 2 + 2);
     regex.push('^');
@@ -22,8 +24,10 @@ pub fn like_matches(value: &str, pattern: &str) -> bool {
     }
 }
 
-/// STIX `MATCHES`: PCRE-style regular-expression match (unanchored, like the
-/// reference implementation). An invalid regex never matches.
+/// Tests whether `value` matches the regular expression (the `MATCHES` operator).
+///
+/// The match is unanchored, mirroring the reference implementation. An invalid
+/// regex never matches (returns false rather than erroring).
 pub fn regex_matches(value: &str, pattern: &str) -> bool {
     match Regex::new(pattern) {
         Ok(re) => re.is_match(value),

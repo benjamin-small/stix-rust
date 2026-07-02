@@ -16,6 +16,8 @@
 //! assert!(result.is_match());
 //! ```
 
+#![warn(missing_docs)]
+
 pub mod compare;
 pub mod error;
 pub mod eval;

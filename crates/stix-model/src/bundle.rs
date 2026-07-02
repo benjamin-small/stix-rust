@@ -8,10 +8,13 @@ use crate::object::StixObject;
 /// A STIX bundle: a `type: "bundle"` envelope around a list of objects.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bundle {
+    /// The STIX `type` property (always `bundle`).
     #[serde(rename = "type")]
     pub type_: String,
+    /// The bundle's id, if present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
+    /// The objects the bundle contains.
     #[serde(default)]
     pub objects: Vec<StixObject>,
 }

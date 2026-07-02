@@ -24,8 +24,11 @@ fn literal_f64(lit: &Literal) -> Option<f64> {
     }
 }
 
-/// Equality between a value and a literal, with int/float promotion and
-/// string-typed-literal comparison.
+/// Compares a resolved value with a pattern literal for equality.
+///
+/// Integers and floats compare numerically across the int/float divide; string-like
+/// literals (string, timestamp, binary, hex) compare as strings. Timestamps are NOT
+/// parsed — they compare lexicographically.
 pub fn value_eq_literal(value: &StixValue, lit: &Literal) -> bool {
     match (value, lit) {
         (StixValue::Bool(b), Literal::Boolean(l)) => b == l,
@@ -41,8 +44,10 @@ pub fn value_eq_literal(value: &StixValue, lit: &Literal) -> bool {
     }
 }
 
-/// Ordering between a value and a literal (numeric or string), or `None` if the
-/// two are not comparable.
+/// Orders a resolved value against a pattern literal.
+///
+/// Returns `None` when the two are not comparable (e.g. bool vs number). Numeric
+/// comparison promotes integers to floats; strings compare lexicographically.
 pub fn value_cmp_literal(value: &StixValue, lit: &Literal) -> Option<Ordering> {
     if let (Some(v), Some(l)) = (value.as_f64(), literal_f64(lit)) {
         return v.partial_cmp(&l);
@@ -53,7 +58,7 @@ pub fn value_cmp_literal(value: &StixValue, lit: &Literal) -> Option<Ordering> {
     None
 }
 
-/// Whether a value equals any member of a set literal (`IN`).
+/// Returns true if the value equals any literal in the set (the `IN` operator).
 pub fn value_in_set(value: &StixValue, set: &[Literal]) -> bool {
     set.iter().any(|lit| value_eq_literal(value, lit))
 }

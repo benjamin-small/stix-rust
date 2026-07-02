@@ -15,12 +15,18 @@ use crate::view::ObjectView;
 /// 2.1 `object_refs`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ObservedData {
+    /// The STIX `type` property (always `observed-data`).
     #[serde(rename = "type")]
     pub type_: String,
+    /// The object's STIX id.
     pub id: String,
+    /// The start of the observation window (RFC3339 timestamp).
     pub first_observed: String,
+    /// The end of the observation window (RFC3339 timestamp).
     pub last_observed: String,
+    /// How many times the window's contents were observed.
     pub number_observed: u64,
+    /// The ids of the referenced SCOs (STIX 2.1).
     #[serde(default)]
     pub object_refs: Vec<String>,
     /// STIX 2.0 inline observed objects (`objects`), if present.

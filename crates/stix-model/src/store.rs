@@ -35,10 +35,12 @@ impl ObjectStore {
         self.by_id.get(id)
     }
 
+    /// The number of objects in the store.
     pub fn len(&self) -> usize {
         self.by_id.len()
     }
 
+    /// Returns true if the store holds no objects.
     pub fn is_empty(&self) -> bool {
         self.by_id.is_empty()
     }
