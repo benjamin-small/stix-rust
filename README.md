@@ -14,7 +14,7 @@ A reusable, pure-Rust toolkit for working with [STIX 2.1](https://oasis-open.git
 - **Import** STIX objects (SDOs, SCOs, SROs) and bundles into a strongly-typed-yet-flexible object model.
 - **Match** patterns against a set of observed objects.
 
-Reusability is the guiding principle: the crates have clean, minimal dependency edges so you can pull in only what you need, and the design leaves clean seams for the planned **Python** and **TypeScript** bindings.
+Reusability is the guiding principle: the crates have clean, minimal dependency edges so you can pull in only what you need, and **Python**, **Java**, and **TypeScript** bindings are built on those seams.
 
 ---
 
@@ -72,18 +72,22 @@ stix-rust/
 ├── crates/
 │   ├── stix-pattern/   # lexer + recursive-descent parser → pattern AST
 │   ├── stix-model/     # StixValue, ObjectView, typed/generic objects, Bundle, ObjectStore
-│   ├── stix-matcher/   # (planned) matching engine
-│   └── stix/           # (planned) umbrella crate + high-level entry points
-├── docs/superpowers/   # design spec & implementation plans
-├── LICENSE-MIT
-└── LICENSE-APACHE
+│   ├── stix-matcher/   # matching engine
+│   ├── stix/           # umbrella crate (package `stix-rust`, lib `stix`)
+│   └── stix-ffi/       # FFI facade wrapped by the bindings
+├── bindings/           # python, java, typescript-node, typescript-wasm
+├── docs/book/          # the documentation site (mdBook)
+├── docs/superpowers/   # design specs & implementation plans
+├── AGENTS.md           # area ownership & agent workflow
+└── RELEASING.md        # release runbook
 ```
 
 **Dependency edges** are deliberately minimal so each crate is independently usable:
 
 - `stix-pattern` → `serde` only
 - `stix-model` → `serde` / `serde_json` only (notably **not** `stix-pattern`)
-- `stix-matcher` → `stix-pattern` + `stix-model` *(planned)*
+- `stix-matcher` → `stix-pattern` + `stix-model`
+- `stix` (umbrella) → all three; `stix-ffi` → `stix`
 
 ---
 
@@ -115,7 +119,7 @@ Or by git:
 
 ```toml
 [dependencies]
-stix = { git = "https://github.com/benjamin-small/stix-rust" }
+stix = { git = "https://github.com/benjamin-small/stix-rust", package = "stix-rust" }
 ```
 
 Or pull in individual crates if you only need part of the toolkit:
@@ -311,7 +315,7 @@ if let Some(w) = bundle.objects[0].downcast_ref::<AcmeWidget>() { /* w.risk_scor
 ```
 
 A runnable version lives in [`crates/stix/examples/custom_model.rs`](crates/stix/examples/custom_model.rs)
-— `cargo run -p stix --example custom_model`.
+— `cargo run -p stix-rust --example custom_model`.
 
 ### Rust — data-level validate/normalize hook
 
@@ -330,9 +334,9 @@ registry.register_handler("x-acme-widget", |mut obj| {
 });
 ```
 
-### TypeScript / Python (planned bindings)
+### TypeScript / Python / Java (via the bindings)
 
-You won't define a Rust struct from a binding. Typed access is native to the host
+You don't define a Rust struct from a binding. Typed access is native to the host
 language (define a TS `interface`/Python class over the parsed object), and custom
 types match with no registration at all. For validation or computed properties you
 register the same import-time hook — a host function the core invokes once per
