@@ -1,6 +1,6 @@
 {
   "name": "@stix-rust/wasm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -8,7 +8,7 @@
     "pkg"
   ],
   "scripts": {
-    "build:wasm": "wasm-pack build --target nodejs --out-dir pkg",
+    "build:wasm": "wasm-pack build --target nodejs --out-dir pkg && node -e \"require('fs').rmSync('pkg/.gitignore',{force:true})\"",
     "build:web": "wasm-pack build --target web --out-dir pkg-web",
     "build": "npm run build:wasm && tsc",
     "test": "npm run build:wasm && tsc && vitest run"
