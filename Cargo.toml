@@ -13,7 +13,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
 regex = "1"
-stix-pattern = { path = "crates/stix-pattern" }
-stix-model = { path = "crates/stix-model" }
-stix-matcher = { path = "crates/stix-matcher" }
-stix = { path = "crates/stix", package = "stix-rust" }
+stix-pattern = { path = "crates/stix-pattern", version = "0.1.0" }
+stix-model = { path = "crates/stix-model", version = "0.1.0" }
+stix-matcher = { path = "crates/stix-matcher", version = "0.1.0" }
+stix = { path = "crates/stix", package = "stix-rust", version = "0.1.0" }
