@@ -1,0 +1,16 @@
+[package]
+name = "stix-java"
+version = "0.0.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "stix_java"
+crate-type = ["cdylib"]
+
+[dependencies]
+stix-ffi = { path = "../../../crates/stix-ffi" }
+jni = "0.21"
+
+# Detach from the parent workspace (the crate lives in an excluded path).
+[workspace]
