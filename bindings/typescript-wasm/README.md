@@ -7,7 +7,13 @@ Node and the browser.
 - **Surface:** identical to `@stix-rust/node` — typed handles (`Engine`, `Pattern`,
   `Bundle`, `MatchResult`); native JS objects; `StixError` hierarchy.
 
-## Build & test (Node)
+## Install
+
+```bash
+npm install @stix-rust/wasm
+```
+
+## Build & test (from source) (Node)
 
 ```bash
 cd bindings/typescript-wasm

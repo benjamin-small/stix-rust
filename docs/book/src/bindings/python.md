@@ -9,8 +9,8 @@ objects — arrives as native `dict`/`list`. Ships type stubs (`py.typed`).
 pip install stix-rust
 ```
 
-> **Not yet published.** From source:
-> `pip install "maturin>=1.5,<2.0" && cd bindings/python && maturin develop`
+From source instead:
+`pip install "maturin>=1.5,<2.0" && cd bindings/python && maturin develop`
 
 ## Worked example
 

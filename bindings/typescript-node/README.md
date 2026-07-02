@@ -6,7 +6,13 @@ Native Node.js bindings for the [stix-rust](../../README.md) toolkit, via napi-r
 - **Surface:** typed handles (`Engine`, `Pattern`, `Bundle`, `MatchResult`); deep
   structure (AST, objects) as native JS objects; `StixError` hierarchy.
 
-## Build & test
+## Install
+
+```bash
+npm install @stix-rust/node
+```
+
+## Build & test (from source)
 
 ```bash
 cd bindings/typescript-node

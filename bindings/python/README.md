@@ -8,7 +8,13 @@ custom object types, from Python.
 - **Surface:** typed handles (`Engine`, `Pattern`, `Bundle`, `MatchResult`); deep
   structure (the pattern AST, bundle objects) as native `dict`/`list`.
 
-## Install (from source)
+## Install
+
+```bash
+pip install stix-rust
+```
+
+Or from source:
 
 ```bash
 pip install "maturin>=1.5,<2.0"

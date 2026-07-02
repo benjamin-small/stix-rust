@@ -10,9 +10,10 @@ Jackson `Map<String, Object>`.
 implementation("io.github.benjaminsmall:stix:0.1.0")
 ```
 
-> **Not yet published.** From source: `cd bindings/java && gradle test` builds the
-> native library (cargo) and runs JUnit. Tests load it from `rust/target/release`
-> via `java.library.path`.
+From source instead:
+ `cd bindings/java && gradle test` builds the
+native library (cargo) and runs JUnit. Tests load it from `rust/target/release`
+via `java.library.path`.
 
 ## Worked example
 

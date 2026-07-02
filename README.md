@@ -1,5 +1,9 @@
 # stix-rust
 
+[![crates.io](https://img.shields.io/crates/v/stix-rust.svg)](https://crates.io/crates/stix-rust)
+[![PyPI](https://img.shields.io/pypi/v/stix-rust.svg)](https://pypi.org/project/stix-rust/)
+[![npm](https://img.shields.io/npm/v/%40stix-rust%2Fnode.svg)](https://www.npmjs.com/package/@stix-rust/node)
+[![docs](https://img.shields.io/badge/docs-site-blue.svg)](https://benjamin-small.github.io/stix-rust/)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-yellow.svg)](#project-status)
@@ -57,7 +61,7 @@ The Rust core, the FFI facade, and all four language bindings are complete and m
 | `stix`         | Umbrella crate re-exporting everything + entry points | ✅ Available  |
 | `stix-ffi`     | FFI-friendly facade wrapped by the language bindings | ✅ Available  |
 
-> **Alpha:** APIs may change before a `0.1` release. Crates are not yet published to [crates.io](https://crates.io); use a git or path dependency for now.
+> **0.1.x:** published on crates.io, PyPI, and npm. APIs may still evolve before 1.0.
 
 ---
 
@@ -99,8 +103,15 @@ Contributor and agent conventions are documented in [`AGENTS.md`](AGENTS.md).
 
 ## Installation
 
-Until the crates are published, depend on them by git. The `stix` umbrella crate
-re-exports everything, so it's usually all you need:
+The `stix-rust` umbrella crate re-exports everything, so it's usually all you need:
+
+```bash
+cargo add stix-rust        # Rust
+pip install stix-rust      # Python
+npm install @stix-rust/node   # or @stix-rust/wasm
+```
+
+Or by git:
 
 ```toml
 [dependencies]
