@@ -1,0 +1,28 @@
+name: release-crates
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          for crate in stix-pattern stix-model stix-matcher stix-rust stix-ffi; do
+            echo "::group::publish $crate"
+            cargo publish -p "$crate" --no-verify
+            echo "::endgroup::"
+            # wait for the index so dependents resolve
+            sleep 45
+          done

@@ -1,0 +1,69 @@
+name: release-npm
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    defaults: { run: { working-directory: bindings/typescript-node } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: '${{ matrix.target }}' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npx napi build --platform --release --target ${{ matrix.target }} --js binding.js --dts binding.d.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: node-${{ matrix.target }}
+          path: bindings/typescript-node/*.node
+  node-publish:
+    needs: node-build
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: bindings/typescript-node } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, registry-url: 'https://registry.npmjs.org' }
+      - run: npm install
+      - uses: actions/download-artifact@v4
+        with:
+          path: bindings/typescript-node/artifacts
+          merge-multiple: false
+      - run: npx napi artifacts
+      - run: npx napi build --platform --js binding.js --dts binding.d.ts && npx tsc
+      - run: npx napi prepublish -t npm --skip-gh-release
+        env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
+      - run: npm publish --access public
+        env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
+  wasm-publish:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: bindings/typescript-wasm } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: wasm32-unknown-unknown }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, registry-url: 'https://registry.npmjs.org' }
+      - run: cargo install wasm-pack --locked
+      - run: npm install
+      - run: npm run build
+      - run: npm publish --access public
+        env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
