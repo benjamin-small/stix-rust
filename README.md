@@ -115,29 +115,28 @@ pip install stix-rust      # Python
 npm install @stix-rust/node   # or @stix-rust/wasm
 ```
 
-Or by git:
+Individual crates are also published, if you only need part of the toolkit:
+
+```bash
+cargo add stix-pattern      # just the pattern parser
+cargo add stix-model        # just the object model
+cargo add stix-matcher      # parser + model + matching engine
+```
+
+<details>
+<summary>From source (git or path dependency)</summary>
 
 ```toml
 [dependencies]
+# by git
 stix = { git = "https://github.com/benjamin-small/stix-rust", package = "stix-rust" }
-```
-
-Or pull in individual crates if you only need part of the toolkit:
-
-```toml
-[dependencies]
 stix-pattern = { git = "https://github.com/benjamin-small/stix-rust" }
-stix-model   = { git = "https://github.com/benjamin-small/stix-rust" }
-stix-matcher = { git = "https://github.com/benjamin-small/stix-rust" }
-```
 
-Or, if you've cloned the repo, by path:
-
-```toml
-[dependencies]
+# or, with the repo cloned, by path
 stix-pattern = { path = "../stix-rust/crates/stix-pattern" }
-stix-model   = { path = "../stix-rust/crates/stix-model" }
 ```
+
+</details>
 
 ---
 
