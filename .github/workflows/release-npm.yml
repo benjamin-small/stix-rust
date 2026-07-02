@@ -47,6 +47,9 @@ jobs:
         with:
           path: bindings/typescript-node/artifacts
           merge-multiple: false
+      # Scoped packages default to private; make every publish in this job public
+      # (napi prepublish publishes the platform sub-packages itself, without --access)
+      - run: npm config set access public
       # Generate the npm/<platform>/ sub-package scaffolding napi artifacts expects
       - run: npx napi create-npm-dir -t .
       - run: npx napi artifacts
