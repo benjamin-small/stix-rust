@@ -5,6 +5,9 @@ Jackson `Map<String, Object>`.
 
 ## Install
 
+> **Maven Central: not yet published** — the Java binding is currently source-only.
+> The coordinate below is the planned artifact.
+
 ```kotlin
 // Gradle (Kotlin DSL)
 implementation("io.github.benjaminsmall:stix:0.1.0")

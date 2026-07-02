@@ -43,6 +43,9 @@ Or from source: `cd bindings/typescript-node && npm install && npm run build`
 
 ### Java
 
+> **Maven Central: not yet published** — source-only for now; the coordinate below
+> is the planned artifact.
+
 ```kotlin
 // Gradle (Kotlin DSL)
 implementation("io.github.benjaminsmall:stix:0.1.0")
