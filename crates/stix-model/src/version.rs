@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 /// exists so version-specific behavior can be added without API churn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SpecVersion {
+    /// STIX 2.1 (the default and currently only supported version).
     #[default]
     #[serde(rename = "2.1")]
     V2_1,

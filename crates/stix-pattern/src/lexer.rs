@@ -2,55 +2,97 @@
 
 use crate::error::{ParseError, Result, Span};
 
+/// A lexed token: its kind plus the source span it was read from.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
+    /// What kind of token this is (and any literal payload).
     pub kind: TokenKind,
+    /// The byte range in the source the token was read from.
     pub span: Span,
 }
 
+/// The kind of a lexed token.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     // Punctuation
+    /// `[`
     LBracket,
+    /// `]`
     RBracket,
+    /// `(`
     LParen,
+    /// `)`
     RParen,
+    /// `:`
     Colon,
+    /// `.`
     Dot,
+    /// `,`
     Comma,
+    /// `*`
     Star,
     // Comparison operators
+    /// `=`
     Equal,
+    /// `!=` or `<>`
     NotEqual,
+    /// `<`
     LessThan,
+    /// `<=`
     LessThanOrEqual,
+    /// `>`
     GreaterThan,
+    /// `>=`
     GreaterThanOrEqual,
     // Keywords
+    /// The `AND` keyword.
     And,
+    /// The `OR` keyword.
     Or,
+    /// The `NOT` keyword.
     Not,
+    /// The `FOLLOWEDBY` keyword.
     FollowedBy,
+    /// The `LIKE` keyword.
     Like,
+    /// The `MATCHES` keyword.
     Matches,
+    /// The `IN` keyword.
     In,
+    /// The `ISSUBSET` keyword.
     IsSubset,
+    /// The `ISSUPERSET` keyword.
     IsSuperset,
+    /// The `EXISTS` keyword.
     Exists,
+    /// The `WITHIN` keyword.
     Within,
+    /// The `REPEATS` keyword.
     Repeats,
+    /// The `SECONDS` keyword.
     Seconds,
+    /// The `TIMES` keyword.
     Times,
+    /// The `START` keyword.
     Start,
+    /// The `STOP` keyword.
     Stop,
     // Literals & identifiers
+    /// A bare identifier (object type or property name).
     Identifier(String),
+    /// A single-quoted string literal (unescaped contents).
     String(String),
+    /// An integer literal.
     Integer(i64),
+    /// A floating-point literal.
     Float(f64),
+    /// A `true`/`false` literal.
     Boolean(bool),
+    /// A `t'...'` timestamp literal (inner string).
     Timestamp(String),
+    /// A `b'...'` base64 literal (inner string).
     Binary(String),
+    /// An `h'...'` hex literal (inner string).
     Hex(String),
 }
 

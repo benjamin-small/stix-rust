@@ -52,7 +52,9 @@ impl Bundle {
 /// The outcome of a match: whether it matched and which observation indices bound.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchOutcome {
+    /// Whether the pattern matched.
     pub matched: bool,
+    /// The indices of the observations that participated in the match.
     pub observations: Vec<u64>,
 }
 

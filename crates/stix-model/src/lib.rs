@@ -1,5 +1,7 @@
 //! STIX 2.1 object model: values, objects, bundles, and an object store.
 
+#![warn(missing_docs)]
+
 pub mod bundle;
 pub mod error;
 pub mod object;

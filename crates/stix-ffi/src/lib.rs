@@ -19,6 +19,8 @@
 //! assert!(engine.match_bundle(&pattern, &bundle).unwrap().matched);
 //! ```
 
+#![warn(missing_docs)]
+
 pub mod engine;
 pub mod error;
 pub mod handles;

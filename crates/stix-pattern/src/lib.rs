@@ -10,6 +10,8 @@
 //! assert!(json.contains("SHA-256"));
 //! ```
 
+#![warn(missing_docs)]
+
 pub mod ast;
 pub mod error;
 pub mod lexer;

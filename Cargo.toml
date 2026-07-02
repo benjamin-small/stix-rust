@@ -16,4 +16,4 @@ regex = "1"
 stix-pattern = { path = "crates/stix-pattern" }
 stix-model = { path = "crates/stix-model" }
 stix-matcher = { path = "crates/stix-matcher" }
-stix = { path = "crates/stix" }
+stix = { path = "crates/stix", package = "stix-rust" }

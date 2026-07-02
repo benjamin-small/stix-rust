@@ -6,9 +6,13 @@ use stix_model::StixObject;
 /// `Observation`; `match_scos` treats a flat list as a single observation.
 #[derive(Debug, Clone)]
 pub struct Observation {
+    /// The objects observed together.
     pub objects: Vec<StixObject>,
+    /// The start of the observation window (RFC3339 timestamp), if known.
     pub first_observed: Option<String>,
+    /// The end of the observation window (RFC3339 timestamp), if known.
     pub last_observed: Option<String>,
+    /// How many times the contents were observed.
     pub number_observed: u64,
 }
 

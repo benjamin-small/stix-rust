@@ -12,16 +12,24 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum StixValue {
+    /// JSON `null`.
     Null,
+    /// A boolean value.
     Bool(bool),
+    /// A signed integer value.
     Integer(i64),
+    /// A floating-point value.
     Float(f64),
+    /// A string value (also carries timestamps, hex, and binary at this layer).
     String(String),
+    /// An ordered list of values.
     List(Vec<StixValue>),
+    /// A key-ordered map of property names to values.
     Object(BTreeMap<String, StixValue>),
 }
 
 impl StixValue {
+    /// The string value, if this is a string.
     pub fn as_str(&self) -> Option<&str> {
         match self {
             StixValue::String(s) => Some(s),
@@ -29,6 +37,7 @@ impl StixValue {
         }
     }
 
+    /// The integer value, if this is an integer.
     pub fn as_i64(&self) -> Option<i64> {
         match self {
             StixValue::Integer(n) => Some(*n),
@@ -45,6 +54,7 @@ impl StixValue {
         }
     }
 
+    /// The boolean value, if this is a boolean.
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             StixValue::Bool(b) => Some(*b),
@@ -52,6 +62,7 @@ impl StixValue {
         }
     }
 
+    /// The list items, if this is a list.
     pub fn as_list(&self) -> Option<&[StixValue]> {
         match self {
             StixValue::List(items) => Some(items),
@@ -59,6 +70,7 @@ impl StixValue {
         }
     }
 
+    /// The property map, if this is an object.
     pub fn as_object(&self) -> Option<&BTreeMap<String, StixValue>> {
         match self {
             StixValue::Object(map) => Some(map),
@@ -66,6 +78,7 @@ impl StixValue {
         }
     }
 
+    /// Returns true if this is [`StixValue::Null`].
     pub fn is_null(&self) -> bool {
         matches!(self, StixValue::Null)
     }

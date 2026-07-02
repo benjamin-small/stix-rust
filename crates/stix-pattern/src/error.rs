@@ -6,11 +6,14 @@ use thiserror::Error;
 /// A half-open byte range `[start, end)` into the original pattern string.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Span {
+    /// The inclusive start byte offset.
     pub start: usize,
+    /// The exclusive end byte offset.
     pub end: usize,
 }
 
 impl Span {
+    /// Creates a span from start and end byte offsets.
     pub fn new(start: usize, end: usize) -> Self {
         Span { start, end }
     }
@@ -20,11 +23,14 @@ impl Span {
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[error("parse error at bytes {}..{}: {message}", .span.start, .span.end)]
 pub struct ParseError {
+    /// A human-readable description of what went wrong.
     pub message: String,
+    /// Where in the source the error occurred.
     pub span: Span,
 }
 
 impl ParseError {
+    /// Creates a parse error from a message and the offending span.
     pub fn new(message: impl Into<String>, span: Span) -> Self {
         ParseError {
             message: message.into(),
