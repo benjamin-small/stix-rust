@@ -8,7 +8,7 @@ A reusable, pure-Rust toolkit for working with [STIX 2.1](https://oasis-open.git
 
 - **Parse** STIX patterning-language patterns into a typed, inspectable AST.
 - **Import** STIX objects (SDOs, SCOs, SROs) and bundles into a strongly-typed-yet-flexible object model.
-- **Match** patterns against a set of observed objects *(in progress — see [Project status](#project-status))*.
+- **Match** patterns against a set of observed objects.
 
 Reusability is the guiding principle: the crates have clean, minimal dependency edges so you can pull in only what you need, and the design leaves clean seams for the planned **Python** and **TypeScript** bindings.
 
@@ -47,7 +47,7 @@ Reusability is the guiding principle: the crates have clean, minimal dependency 
 
 ## Project status
 
-`stix-rust` is built in three phases. Phases 1 and 2 are complete and merged; phase 3 is next.
+The Rust core, the FFI facade, and all four language bindings are complete and merged.
 
 | Crate          | Purpose                                              | Status        |
 | -------------- | --------------------------------------------------- | ------------- |
@@ -55,6 +55,7 @@ Reusability is the guiding principle: the crates have clean, minimal dependency 
 | `stix-model`   | Object model: values, objects, bundles, object store | ✅ Available  |
 | `stix-matcher` | Match a pattern AST against observed objects        | ✅ Available  |
 | `stix`         | Umbrella crate re-exporting everything + entry points | ✅ Available  |
+| `stix-ffi`     | FFI-friendly facade wrapped by the language bindings | ✅ Available  |
 
 > **Alpha:** APIs may change before a `0.1` release. Crates are not yet published to [crates.io](https://crates.io); use a git or path dependency for now.
 
@@ -84,15 +85,15 @@ stix-rust/
 
 ## Language interfaces
 
-The Rust crates are the core. Language bindings (in progress) live under
+The Rust crates are the core. Language bindings live under
 [`bindings/`](bindings/) — each has self-contained docs you can link to directly:
 
 | Interface | Toolchain | Docs | Status |
 | --- | --- | --- | --- |
-| Python | PyO3 + maturin | [`bindings/python`](bindings/python/README.md) | 🚧 planned |
-| Java | jni-rs | [`bindings/java`](bindings/java/README.md) | 🚧 planned |
-| TypeScript (Node) | napi-rs | [`bindings/typescript-node`](bindings/typescript-node/README.md) | 🚧 planned |
-| TypeScript (wasm) | wasm-bindgen | [`bindings/typescript-wasm`](bindings/typescript-wasm/README.md) | 🚧 planned |
+| Python | PyO3 + maturin | [`bindings/python`](bindings/python/README.md) | ✅ available |
+| Java | jni-rs | [`bindings/java`](bindings/java/README.md) | ✅ available |
+| TypeScript (Node) | napi-rs | [`bindings/typescript-node`](bindings/typescript-node/README.md) | ✅ available |
+| TypeScript (wasm) | wasm-bindgen | [`bindings/typescript-wasm`](bindings/typescript-wasm/README.md) | ✅ available |
 
 Contributor and agent conventions are documented in [`AGENTS.md`](AGENTS.md).
 
@@ -374,7 +375,7 @@ conformance corpus of valid/invalid patterns under
 - [ ] `FOLLOWEDBY` sequencing + temporal-qualifier matching
 - [ ] STIX 2.0 support via the version seam
 - [x] Consumer-injectable custom typed models (registry)
-- [ ] Python (PyO3) and TypeScript (wasm/napi) bindings
+- [x] Python (PyO3), Java (jni-rs), and TypeScript (napi + wasm) bindings
 
 ---
 
