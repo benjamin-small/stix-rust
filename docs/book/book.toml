@@ -1,0 +1,14 @@
+[book]
+title = "stix-rust"
+description = "A Rust toolkit (with Python, Java, and TypeScript bindings) for STIX 2.1 patterns, objects, and matching."
+authors = ["Benjamin Small"]
+language = "en"
+src = "src"
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output.html]
+git-repository-url = "https://github.com/benjamin-small/stix-rust"
+site-url = "/stix-rust/"
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
