@@ -2,16 +2,13 @@
 
 ## Install
 
-> **Not yet published.** Until the crates/packages land on the registries, install
-> from source as shown under each ecosystem below.
-
 ### Rust
 
 ```bash
 cargo add stix-rust
 ```
 
-From source (today):
+Or from source:
 
 ```toml
 [dependencies]
@@ -27,7 +24,7 @@ either way.
 pip install stix-rust
 ```
 
-From source (today):
+Or from source:
 
 ```bash
 pip install "maturin>=1.5,<2.0"
@@ -41,7 +38,7 @@ npm install @stix-rust/node    # native Node addon
 npm install @stix-rust/wasm    # portable WebAssembly (Node + browser)
 ```
 
-From source (today): `cd bindings/typescript-node && npm install && npm run build`
+Or from source: `cd bindings/typescript-node && npm install && npm run build`
 (same for `typescript-wasm`).
 
 ### Java
@@ -51,7 +48,7 @@ From source (today): `cd bindings/typescript-node && npm install && npm run buil
 implementation("io.github.benjaminsmall:stix:0.1.0")
 ```
 
-From source (today): `cd bindings/java && gradle test` builds the native library and
+Or from source: `cd bindings/java && gradle test` builds the native library and
 runs the suite; see the [Java page](bindings/java.md) for library-loading details.
 
 ## Quick start (Rust)

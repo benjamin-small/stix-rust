@@ -10,8 +10,8 @@ the API is identical.
 npm install @stix-rust/node
 ```
 
-> **Not yet published.** From source:
-> `cd bindings/typescript-node && npm install && npm run build`
+From source instead:
+`cd bindings/typescript-node && npm install && npm run build`
 
 ## Worked example
 

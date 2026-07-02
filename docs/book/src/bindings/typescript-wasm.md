@@ -11,9 +11,9 @@ initialized asynchronously first.
 npm install @stix-rust/wasm
 ```
 
-> **Not yet published.** From source:
-> `cd bindings/typescript-wasm && npm install && npm run build`
-> (Node target; `npm run build:web` produces the browser build.)
+From source instead:
+`cd bindings/typescript-wasm && npm install && npm run build`
+(Node target; `npm run build:web` produces the browser build.)
 
 ## Worked example
 
