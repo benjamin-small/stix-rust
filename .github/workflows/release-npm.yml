@@ -47,11 +47,20 @@ jobs:
         with:
           path: bindings/typescript-node/artifacts
           merge-multiple: false
+      # Generate the npm/<platform>/ sub-package scaffolding napi artifacts expects
+      - run: npx napi create-npm-dir -t .
       - run: npx napi artifacts
       - run: npx napi build --platform --js binding.js --dts binding.d.ts && npx tsc
       - run: npx napi prepublish -t npm --skip-gh-release
         env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
-      - run: npm publish --access public
+      - name: Publish (skip if version already live)
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$(npm view @stix-rust/node version 2>/dev/null)" = "$VERSION" ]; then
+            echo "@stix-rust/node@$VERSION already published — skipping"
+          else
+            npm publish --access public
+          fi
         env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
   wasm-publish:
     runs-on: ubuntu-latest
@@ -65,5 +74,12 @@ jobs:
       - run: cargo install wasm-pack --locked
       - run: npm install
       - run: npm run build
-      - run: npm publish --access public
+      - name: Publish (skip if version already live)
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$(npm view @stix-rust/wasm version 2>/dev/null)" = "$VERSION" ]; then
+            echo "@stix-rust/wasm@$VERSION already published — skipping"
+          else
+            npm publish --access public
+          fi
         env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
