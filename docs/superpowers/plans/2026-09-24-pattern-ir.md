@@ -1211,6 +1211,10 @@ block main (observation):
         assert_eq!(prog.to_listing(), expected);
     }
 
+    // NOTE: `WITHIN` qualifies only the SECOND observation, not the FOLLOWEDBY.
+    // STIX 2.1 attaches qualifiers to the tightest production, so this parses as
+    // FollowedBy(A, Within(B, 300)) — hence `within` precedes `followedby` below
+    // and takes o1. Verified against the parser, not assumed.
     #[test]
     fn prints_followedby_with_a_qualifier() {
         let src = "[ipv4-addr:value = '1.2.3.4' AND file:size > 1024] \
@@ -1233,8 +1237,8 @@ block b2 (comparison):
 block main (observation):
   o0 = observe     b1
   o1 = observe     b2
-  o2 = followedby  o0, o1
-  o3 = within      o2, 300
+  o2 = within      o1, 300
+  o3 = followedby  o0, o2
        ret         o3
 ";
         assert_eq!(prog.to_listing(), expected);

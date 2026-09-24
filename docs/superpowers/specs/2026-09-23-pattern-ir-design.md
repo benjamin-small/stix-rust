@@ -208,7 +208,7 @@ For:
 `to_listing()` produces:
 
 ```
-block b0 (comparison):
+block b1 (comparison):
   t0 = load        ipv4-addr:value
   t1 = eq          t0, '1.2.3.4'
   t2 = load        file:size
@@ -216,18 +216,41 @@ block b0 (comparison):
   t4 = and         t1, t3
        yield       t4
 
-block b1 (comparison):
+block b2 (comparison):
   t5 = load        domain-name:value
   t6 = eq          t5, 'evil.example'
        yield       t6
 
 block main (observation):
-  o0 = observe     b0
-  o1 = observe     b1
-  o2 = followedby  o0, o1
-  o3 = within      o2, 300
+  o0 = observe     b1
+  o1 = observe     b2
+  o2 = within      o1, 300
+  o3 = followedby  o0, o2
        ret         o3
 ```
+
+Two things in that listing are easy to get wrong, and both were corrected after
+being checked against the parser rather than reasoned about:
+
+**`WITHIN` qualifies only the second observation, not the `FOLLOWEDBY`.** In the
+STIX 2.1 grammar a qualifier attaches to `observationExpression` — the tightest
+production, meaning a single bracketed observation or a parenthesized group — so
+`[A] FOLLOWEDBY [B] WITHIN 300 SECONDS` parses as `FollowedBy(A, Within(B, 300))`.
+That is why `within` precedes `followedby` in the listing and takes `o1` rather
+than the `followedby` result. To scope the window over the whole sequence the
+pattern must parenthesize it:
+
+```
+([ipv4-addr:value = '1.2.3.4'] FOLLOWEDBY [domain-name:value = 'evil.example'])
+  WITHIN 300 SECONDS
+```
+
+which lowers to `within` taking the `followedby` result instead.
+
+**Comparison blocks are numbered from 1, not 0.** `main` is allocated first and
+takes `BlockId(0)`, so the comparison blocks are `b1`, `b2`, … . Block ids are
+opaque and nothing depends on their values; only the listing's display reflects
+them.
 
 ## Lowering
 
