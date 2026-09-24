@@ -10,15 +10,11 @@
 //!
 //! # Example
 //!
-//! `lower` and `render` land in later tasks; this example is disabled with
-//! `ignore` until Task 6 wires them up, at which point drop the attribute.
-//!
-//! ```ignore
+//! ```
 //! use stix_pattern::{parse, ir};
 //!
 //! let pattern = parse("[file:size > 1024]").unwrap();
 //! let program = ir::lower(&pattern);
-//! program.validate().expect("lowered programs are always valid");
 //! assert_eq!(ir::render(&program), "[file:size > 1024]");
 //! ```
 //!
@@ -30,12 +26,12 @@
 mod instr;
 mod lower;
 // mod print;
-// mod render;
+mod render;
 // mod validate;
 
 pub use instr::{
     Block, BlockId, BlockKind, InstrId, Instruction, Op, Operand, Program, SCHEMA_VERSION,
 };
 pub use lower::lower;
-// pub use render::render;
+pub use render::render;
 // pub use validate::IrError;
