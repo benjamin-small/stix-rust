@@ -403,7 +403,7 @@ AST's existing treatment.
 ## Testing
 
 - **Corpus round-trip** (`tests/ir_roundtrip.rs`): every pattern in
-  `tests/fixtures/valid_patterns.txt` — 25 of them — is lowered, validated,
+  `tests/fixtures/valid_patterns.txt` — 26 of them — is lowered, validated,
   rendered, reparsed, and compared to the original AST modulo spans. This is the
   primary proof obligation of sub-project B.
 - **Listing snapshots**: a handful of representative patterns (simple comparison,
@@ -441,7 +441,7 @@ remains true after this lands.
 1. `lower` is total over the AST — every pattern in the conformance corpus lowers
    without panic.
 2. `parse(render(lower(ast))).without_spans() == ast.without_spans()` holds for all
-   25 corpus patterns.
+   26 corpus patterns.
 3. `validate()` accepts every lowered program and rejects each hand-built violation
    with the correct typed error.
 4. A `Program` survives a JSON serialize/deserialize round trip unchanged.
