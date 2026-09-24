@@ -4,15 +4,25 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 
 use crate::ast::ComparisonOperator;
-use crate::ir::render::{render_literal, render_path, render_seconds};
+use crate::ir::render::{escape_string, render_literal, render_path, render_seconds};
 use crate::ir::{Block, BlockKind, InstrId, Op, Operand, Program};
 
-/// Width of the mnemonic field, so operands line up in a column.
+/// Minimum width of the mnemonic field, so operands line up in a column.
 ///
-/// Every line's prefix is exactly 7 characters — `"  t0 = "` for an instruction
-/// that names a result, `"       "` for a terminator that does not — so padding
-/// the mnemonic to a fixed width is all the alignment this format needs.
+/// A mnemonic at least this wide — `not issuperset` is 14 — is padded to its own
+/// length plus one instead, since the operands still need a space in front of
+/// them.
 const MNEMONIC_WIDTH: usize = 12;
+
+/// Width of a line's prefix, given the widest result name in the listing.
+///
+/// A prefix is two spaces of indent, the result name, and `" = "`, as in
+/// `"  t0 = "`; a terminator names no result and gets that many spaces instead.
+/// The name field is as wide as the longest name the listing uses, so the `=`
+/// stays in one column once the ordinals reach two digits.
+fn prefix_width(name_width: usize) -> usize {
+    2 + name_width + 3
+}
 
 impl Program {
     /// Render this program as a human-readable listing.
@@ -39,12 +49,14 @@ impl Program {
             }
         }
 
+        let name_width = names.values().map(String::len).max().unwrap_or(2);
+
         let mut out = String::new();
         for b in &self.blocks {
-            write_block(&mut out, b, &names);
+            write_block(&mut out, b, &names, name_width);
             out.push('\n');
         }
-        write_block(&mut out, &self.main, &names);
+        write_block(&mut out, &self.main, &names, name_width);
         out
     }
 }
@@ -54,7 +66,12 @@ fn produces_value(op: &Op) -> bool {
     !matches!(op, Op::Yield { .. } | Op::Ret { .. })
 }
 
-fn write_block(out: &mut String, b: &Block, names: &HashMap<InstrId, String>) {
+fn write_block(
+    out: &mut String,
+    b: &Block,
+    names: &HashMap<InstrId, String>,
+    name_width: usize,
+) {
     match b.kind {
         BlockKind::Comparison => {
             let _ = writeln!(out, "block b{} (comparison):", b.id.0);
@@ -65,11 +82,12 @@ fn write_block(out: &mut String, b: &Block, names: &HashMap<InstrId, String>) {
     }
     for i in &b.instructions {
         let dest = match names.get(&i.id) {
-            Some(n) => format!("  {n} = "),
-            None => "       ".to_string(),
+            Some(n) => format!("  {n:<name_width$} = "),
+            None => " ".repeat(prefix_width(name_width)),
         };
         let (mnemonic, operands) = describe(&i.op, names);
-        let padded = format!("{mnemonic:<MNEMONIC_WIDTH$}");
+        let width = MNEMONIC_WIDTH.max(mnemonic.len() + 1);
+        let padded = format!("{mnemonic:<width$}");
         if operands.is_empty() {
             let _ = writeln!(out, "{dest}{}", padded.trim_end());
         } else {
@@ -131,7 +149,12 @@ fn describe(op: &Op, names: &HashMap<InstrId, String>) -> (String, String) {
         ),
         Op::StartStop { input, start, stop } => (
             "startstop".to_string(),
-            format!("{}, '{}', '{}'", name_of(*input, names), start, stop),
+            format!(
+                "{}, '{}', '{}'",
+                name_of(*input, names),
+                escape_string(start),
+                escape_string(stop)
+            ),
         ),
         Op::Ret { value } => ("ret".to_string(), name_of(*value, names)),
     }
@@ -225,5 +248,72 @@ block main (observation):
     fn marks_negation() {
         let prog = lower(&parse("[file:name NOT = 'x']").unwrap());
         assert!(prog.to_listing().contains("t1 = not eq      t0, 'x'"), "{}", prog.to_listing());
+    }
+
+    #[test]
+    fn keeps_a_space_after_an_overlong_mnemonic() {
+        // `not issubset` is exactly MNEMONIC_WIDTH and `not issuperset` is wider,
+        // so fixed-width padding would run the mnemonic into its first operand.
+        let prog = lower(&parse("[ipv4-addr:value NOT ISSUPERSET '10.0.0.0/8']").unwrap());
+        let listing = prog.to_listing();
+        assert!(
+            listing.contains("t1 = not issuperset t0, '10.0.0.0/8'"),
+            "{listing}"
+        );
+
+        let prog = lower(&parse("[ipv4-addr:value NOT ISSUBSET '10.0.0.0/8']").unwrap());
+        let listing = prog.to_listing();
+        assert!(
+            listing.contains("t1 = not issubset t0, '10.0.0.0/8'"),
+            "{listing}"
+        );
+    }
+
+    #[test]
+    fn columns_stay_aligned_past_the_tenth_ordinal() {
+        // Six terms give twelve comparison-tier results, so ordinals reach t10.
+        let terms: Vec<String> = (0..6).map(|i| format!("file:size > {i}")).collect();
+        let src = format!("[{}]", terms.join(" AND "));
+        let prog = lower(&parse(&src).unwrap());
+        let listing = prog.to_listing();
+        assert!(listing.contains("t10 = "), "should reach t10:\n{listing}");
+
+        // Every instruction line starts its mnemonic in the same column, whether it
+        // names a result or not.
+        let instruction_lines: Vec<&str> = listing
+            .lines()
+            .filter(|l| l.starts_with("  ") || l.starts_with("   "))
+            .collect();
+        let mnemonic_columns: Vec<usize> = instruction_lines
+            .iter()
+            .map(|l| match l.find(" = ") {
+                // A line that names a result: the mnemonic follows `" = "`.
+                Some(i) => i + 3,
+                // A terminator: the mnemonic follows the blank prefix.
+                None => l.len() - l.trim_start().len(),
+            })
+            .collect();
+        assert!(
+            mnemonic_columns.windows(2).all(|w| w[0] == w[1]),
+            "mnemonics should share one column, got {mnemonic_columns:?}:\n{listing}"
+        );
+
+        // And the `=` signs line up with each other.
+        let equals_columns: Vec<usize> = instruction_lines
+            .iter()
+            .filter_map(|l| l.find(" = "))
+            .collect();
+        assert!(
+            equals_columns.windows(2).all(|w| w[0] == w[1]),
+            "`=` should share one column, got {equals_columns:?}:\n{listing}"
+        );
+    }
+
+    #[test]
+    fn escapes_quotes_in_start_stop_timestamps() {
+        let prog =
+            lower(&parse(r"[file:name='a'] START t'2020\'x' STOP t'2021'").unwrap());
+        let listing = prog.to_listing();
+        assert!(listing.contains(r"startstop   o0, '2020\'x', '2021'"), "{listing}");
     }
 }

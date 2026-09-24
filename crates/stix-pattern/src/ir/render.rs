@@ -277,7 +277,7 @@ fn is_keyword(word: &str) -> bool {
 }
 
 /// Escape a string for a single-quoted STIX literal.
-fn escape_string(s: &str) -> String {
+pub(crate) fn escape_string(s: &str) -> String {
     s.replace('\\', r"\\").replace('\'', r"\'")
 }
 
