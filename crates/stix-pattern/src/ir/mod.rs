@@ -25,7 +25,7 @@
 
 mod instr;
 mod lower;
-// mod print;
+mod print;
 mod render;
 // mod validate;
 
