@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::error::Span;
+
 /// A complete parsed pattern.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Pattern {
@@ -14,7 +16,12 @@ pub struct Pattern {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ObservationExpression {
     /// A single `[ comparisonExpr ]` observation.
-    Observation(Box<ComparisonExpression>),
+    Observation {
+        /// The comparison expression inside the brackets.
+        expression: Box<ComparisonExpression>,
+        /// Byte range of the whole `[...]` including the brackets.
+        span: Span,
+    },
     /// `AND` of two observation expressions.
     And(Box<ObservationExpression>, Box<ObservationExpression>),
     /// `OR` of two observation expressions.
@@ -27,6 +34,8 @@ pub enum ObservationExpression {
         expression: Box<ObservationExpression>,
         /// The attached qualifier.
         qualifier: Qualifier,
+        /// Byte range of the qualifier clause only (e.g. `WITHIN 60 SECONDS`).
+        span: Span,
     },
 }
 
@@ -74,6 +83,8 @@ pub struct Comparison {
     pub negated: bool,
     /// The right-hand-side operand.
     pub value: ComparisonOperand,
+    /// Byte range of the whole property test in the source pattern.
+    pub span: Span,
 }
 
 /// Right-hand side of a comparison: either a single literal or a set (for `IN`).
@@ -121,6 +132,8 @@ pub struct ObjectPath {
     pub object_type: String,
     /// The property steps after the colon, in order.
     pub steps: Vec<PathStep>,
+    /// Byte range of the path text in the source pattern.
+    pub span: Span,
 }
 
 /// One step in an [`ObjectPath`].
@@ -153,6 +166,79 @@ pub enum Literal {
     Hex(String),
 }
 
+/// A span of zero length at offset 0, used as the normalized value by
+/// [`Pattern::without_spans`].
+const ZERO_SPAN: Span = Span { start: 0, end: 0 };
+
+impl Pattern {
+    /// A copy of this pattern with every source span zeroed.
+    ///
+    /// Two patterns that differ only in whitespace or in where they appeared in
+    /// a source string compare equal after this normalization. Used to state
+    /// structural equality independent of byte offsets.
+    pub fn without_spans(&self) -> Pattern {
+        Pattern {
+            expression: strip_observation_spans(&self.expression),
+        }
+    }
+}
+
+fn strip_observation_spans(e: &ObservationExpression) -> ObservationExpression {
+    use ObservationExpression as O;
+    match e {
+        O::Observation { expression, .. } => O::Observation {
+            expression: Box::new(strip_comparison_spans(expression)),
+            span: ZERO_SPAN,
+        },
+        O::And(l, r) => O::And(
+            Box::new(strip_observation_spans(l)),
+            Box::new(strip_observation_spans(r)),
+        ),
+        O::Or(l, r) => O::Or(
+            Box::new(strip_observation_spans(l)),
+            Box::new(strip_observation_spans(r)),
+        ),
+        O::FollowedBy(l, r) => O::FollowedBy(
+            Box::new(strip_observation_spans(l)),
+            Box::new(strip_observation_spans(r)),
+        ),
+        O::Qualified {
+            expression,
+            qualifier,
+            ..
+        } => O::Qualified {
+            expression: Box::new(strip_observation_spans(expression)),
+            qualifier: qualifier.clone(),
+            span: ZERO_SPAN,
+        },
+    }
+}
+
+fn strip_comparison_spans(e: &ComparisonExpression) -> ComparisonExpression {
+    use ComparisonExpression as C;
+    match e {
+        C::Test(c) => C::Test(Comparison {
+            path: ObjectPath {
+                object_type: c.path.object_type.clone(),
+                steps: c.path.steps.clone(),
+                span: ZERO_SPAN,
+            },
+            operator: c.operator,
+            negated: c.negated,
+            value: c.value.clone(),
+            span: ZERO_SPAN,
+        }),
+        C::And(l, r) => C::And(
+            Box::new(strip_comparison_spans(l)),
+            Box::new(strip_comparison_spans(r)),
+        ),
+        C::Or(l, r) => C::Or(
+            Box::new(strip_comparison_spans(l)),
+            Box::new(strip_comparison_spans(r)),
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,20 +248,23 @@ mod tests {
         let path = ObjectPath {
             object_type: "ipv4-addr".to_string(),
             steps: vec![PathStep::Key("value".to_string())],
+            span: Span::default(),
         };
         let comp = Comparison {
             path,
             operator: ComparisonOperator::Equal,
             negated: false,
             value: ComparisonOperand::Literal(Literal::String("1.2.3.4".to_string())),
+            span: Span::default(),
         };
         let pattern = Pattern {
-            expression: ObservationExpression::Observation(Box::new(ComparisonExpression::Test(
-                comp,
-            ))),
+            expression: ObservationExpression::Observation {
+                expression: Box::new(ComparisonExpression::Test(comp)),
+                span: Span::default(),
+            },
         };
         match pattern.expression {
-            ObservationExpression::Observation(_) => {}
+            ObservationExpression::Observation { .. } => {}
             _ => panic!("expected observation"),
         }
     }
