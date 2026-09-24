@@ -28,7 +28,7 @@
 //! [`Program::validate`] before using one that came from outside this process.
 
 mod instr;
-// mod lower;
+mod lower;
 // mod print;
 // mod render;
 // mod validate;
@@ -36,6 +36,6 @@ mod instr;
 pub use instr::{
     Block, BlockId, BlockKind, InstrId, Instruction, Op, Operand, Program, SCHEMA_VERSION,
 };
-// pub use lower::lower;
+pub use lower::lower;
 // pub use render::render;
 // pub use validate::IrError;
