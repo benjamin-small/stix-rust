@@ -11,8 +11,8 @@ use crate::ir::{Block, InstrId, Instruction, Op, Operand, Program};
 /// grammar's other spelling, `<>`, is not currently accepted by this crate's
 /// lexer; see [issue #29](https://github.com/benjamin-small/stix-rust/issues/29).)
 ///
-/// For any program produced by [`lower`](crate::ir::lower), reparsing this
-/// output recovers the same AST up to spans:
+/// For a program lowered from [`parse`](crate::parse), reparsing this output
+/// recovers the same AST up to spans, as long as the pattern is ASCII:
 ///
 /// ```
 /// use stix_pattern::{parse, ir};
@@ -23,9 +23,18 @@ use crate::ir::{Block, InstrId, Instruction, Op, Operand, Program};
 /// assert_eq!(parse(&text).unwrap().without_spans(), ast.without_spans());
 /// ```
 ///
+/// A non-ASCII string literal does **not** survive the round trip, because the
+/// lexer decodes string literals as Latin-1; see
+/// [issue #30](https://github.com/benjamin-small/stix-rust/issues/30). The
+/// guarantee also assumes the AST came from the parser: a hand-built `Comparison`
+/// using `EXISTS` with an operand other than `Literal::Boolean(true)` — the
+/// placeholder the parser writes — loses that operand, since the IR records
+/// `EXISTS` as having none.
+///
 /// Hand-built programs that share one value between two consumers render that
 /// subexpression once per use, since pattern text has no way to name a shared
-/// value.
+/// value. [`Program::validate`](crate::ir::Program::validate) rejects those, so
+/// check any program that did not come from `lower` before rendering it.
 pub fn render(program: &Program) -> String {
     let mut out = String::new();
     // Not a well-formed program if there is no terminator, or the terminator
@@ -60,6 +69,19 @@ fn cmp_prec(op: &Op) -> u8 {
     }
 }
 
+/// Write the observation-tier expression rooted at `value`.
+///
+/// Mirrors the parser's observation-expression cascade —
+/// `parse_observation_expression` (`FOLLOWEDBY`) → `parse_observation_or` →
+/// `parse_observation_and` → `parse_observation_qualified` →
+/// `parse_observation_primary` — with [`obs_prec`] standing in for the cascade's
+/// levels. `min_prec` is the tightest precedence the surrounding context accepts;
+/// a looser operator is parenthesized. The right operand is rendered one level
+/// tighter than the left, which is what makes these operators left-associative on
+/// the way out, matching the parser's loops.
+///
+/// A change to the parser's precedence needs a matching change here, or rendering
+/// stops round-tripping.
 fn render_observation(
     program: &Program,
     block: &Block,
@@ -126,6 +148,17 @@ fn render_observation(
     }
 }
 
+/// Write the comparison-tier expression rooted at `value`, i.e. the inside of one
+/// `[...]`.
+///
+/// Mirrors the parser's comparison-expression cascade —
+/// `parse_comparison_expression` (`OR`) → `parse_comparison_and` →
+/// `parse_prop_test` — with [`cmp_prec`] standing in for the cascade's levels.
+/// `min_prec` and the one-level-tighter right operand work exactly as in
+/// [`render_observation`].
+///
+/// A change to the parser's precedence needs a matching change here, or rendering
+/// stops round-tripping.
 fn render_comparison(block: &Block, value: InstrId, min_prec: u8, out: &mut String) {
     let Some(instr) = block.instruction(value) else {
         return;
@@ -516,6 +549,14 @@ mod tests {
         // parse_timestamp_string does no RFC3339 validation, so a quote can reach
         // the IR and must be re-escaped on the way out.
         assert_round_trips(r"[file:name='a'] START t'2020-01-01T00:00:00Z\'x' STOP t'2020-01-02T00:00:00Z'");
+    }
+
+    /// Un-ignore this when #30 lands: it pins the one documented hole in the
+    /// round-trip guarantee, so the gap surfaces rather than rotting.
+    #[test]
+    #[ignore = "blocked on lexer issue #30: string literals are decoded as Latin-1"]
+    fn non_ascii_strings_round_trip() {
+        assert_round_trips("[file:name = 'café']");
     }
 
     #[test]
