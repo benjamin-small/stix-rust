@@ -106,9 +106,15 @@ fn every_corpus_pattern_prints_a_listing() {
             listing.contains("block main (observation):"),
             "line {lineno}: `{src}` produced no main block:\n{listing}"
         );
+        let last_line = listing
+            .trim_end()
+            .lines()
+            .last()
+            .unwrap_or_else(|| panic!("line {lineno}: listing should not be empty"));
         assert!(
-            listing.trim_end().ends_with(|c: char| c.is_ascii_alphanumeric()),
-            "line {lineno}: listing should end with a terminator operand:\n{listing}"
+            last_line.trim_start().starts_with("ret ")
+                && last_line.trim_end().ends_with(|c: char| c.is_ascii_digit()),
+            "line {lineno}: last line should be a `ret` terminator naming an operand: `{last_line}`"
         );
     }
 }
