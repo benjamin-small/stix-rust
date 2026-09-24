@@ -67,11 +67,36 @@ println!("{}", serde_json::to_string_pretty(&pattern).unwrap());
 {
   "expression": {
     "Observation": {
-      "Test": {
-        "path": { "object_type": "file", "steps": [ { "Key": "size" } ] },
-        "operator": "GreaterThan",
-        "negated": false,
-        "value": { "Literal": { "Integer": 1024 } }
+      "expression": {
+        "Test": {
+          "path": {
+            "object_type": "file",
+            "steps": [
+              {
+                "Key": "size"
+              }
+            ],
+            "span": {
+              "start": 1,
+              "end": 10
+            }
+          },
+          "operator": "GreaterThan",
+          "negated": false,
+          "value": {
+            "Literal": {
+              "Integer": 1024
+            }
+          },
+          "span": {
+            "start": 1,
+            "end": 17
+          }
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 18
       }
     }
   }
@@ -83,3 +108,54 @@ Parse errors carry a byte-offset span into the source string:
 ```text
 parse error at bytes 19..20: expected a literal value
 ```
+
+## The three-address IR
+
+Alongside the AST, a pattern can be lowered to a linear three-address
+representation. Each `[...]` observation becomes a *comparison block* — the unit
+the matcher enumerates binding sets over — and a `main` block combines the
+observation results:
+
+```rust
+let pattern = stix::parse("[file:size > 1024] FOLLOWEDBY [file:name = 'a']").unwrap();
+let program = stix::pattern::ir::lower(&pattern);
+println!("{}", program.to_listing());
+```
+
+```text
+block b1 (comparison):
+  t0 = load        file:size
+  t1 = gt          t0, 1024
+       yield       t1
+
+block b2 (comparison):
+  t2 = load        file:name
+  t3 = eq          t2, 'a'
+       yield       t3
+
+block main (observation):
+  o0 = observe     b1
+  o1 = observe     b2
+  o2 = followedby  o0, o1
+       ret         o2
+```
+
+The IR is in SSA form: an instruction's id names the value it produces, so there
+is no separate destination field. Instructions carry the byte span of the source
+text they came from.
+
+`ir::render` goes the other way, producing *canonical* pattern text — normalized
+whitespace, `!=` rather than `<>`, and parentheses only where precedence needs
+them. Rendering then reparsing recovers the same AST, which makes canonical text
+a usable basis for comparing two patterns:
+
+```rust
+let text = stix::pattern::ir::render(&program);
+assert_eq!(text, "[file:size > 1024] FOLLOWEDBY [file:name = 'a']");
+```
+
+Two caveats. The IR represents more than the matcher can execute —
+`FOLLOWEDBY` and the qualifiers lower and render correctly but still return
+`MatchError::Unsupported` when matched. And a `Program` that was deserialized or
+built by hand should be checked with `Program::validate()` first, since
+deserialization does not verify invariants.
