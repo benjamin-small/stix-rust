@@ -73,9 +73,23 @@ impl<'a> Parser<'a> {
         ParseError::new(msg, self.current_span())
     }
 
+    /// Span of the most recently consumed token, or a zero span at the start.
+    fn prev_span(&self) -> Span {
+        match self.pos.checked_sub(1).and_then(|i| self.tokens.get(i)) {
+            Some(t) => t.span,
+            None => Span::new(0, 0),
+        }
+    }
+
+    /// A span from `start` to the end of the most recently consumed token.
+    fn span_from(&self, start: usize) -> Span {
+        Span::new(start, self.prev_span().end)
+    }
+
     // --- object path ---
 
     pub(crate) fn parse_object_path(&mut self) -> Result<ObjectPath> {
+        let start = self.current_span().start;
         // object-type
         let object_type = match self.advance().map(|t| &t.kind) {
             Some(TokenKind::Identifier(s)) => s.clone(),
@@ -117,7 +131,11 @@ impl<'a> Parser<'a> {
                 _ => break,
             }
         }
-        Ok(ObjectPath { object_type, steps })
+        Ok(ObjectPath {
+            object_type,
+            steps,
+            span: self.span_from(start),
+        })
     }
 
     fn parse_key_component(&mut self) -> Result<String> {
@@ -149,6 +167,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_prop_test(&mut self) -> Result<ComparisonExpression> {
+        let start = self.current_span().start;
+
         // Parenthesized sub-expression
         if self.eat(&TokenKind::LParen) {
             let inner = self.parse_comparison_expression()?;
@@ -165,6 +185,7 @@ impl<'a> Parser<'a> {
                 negated: false,
                 // operand unused for EXISTS; use a benign placeholder.
                 value: ComparisonOperand::Literal(Literal::Boolean(true)),
+                span: self.span_from(start),
             }));
         }
 
@@ -182,6 +203,7 @@ impl<'a> Parser<'a> {
             operator,
             negated,
             value,
+            span: self.span_from(start),
         }))
     }
 
@@ -261,6 +283,7 @@ impl<'a> Parser<'a> {
     fn parse_observation_qualified(&mut self) -> Result<ObservationExpression> {
         let mut expr = self.parse_observation_primary()?;
         loop {
+            let q_start = self.current_span().start;
             let qualifier = match self.peek() {
                 Some(TokenKind::Within) => {
                     self.advance();
@@ -286,16 +309,21 @@ impl<'a> Parser<'a> {
             expr = ObservationExpression::Qualified {
                 expression: Box::new(expr),
                 qualifier,
+                span: self.span_from(q_start),
             };
         }
         Ok(expr)
     }
 
     fn parse_observation_primary(&mut self) -> Result<ObservationExpression> {
+        let start = self.current_span().start;
         if self.eat(&TokenKind::LBracket) {
             let comp = self.parse_comparison_expression()?;
             self.expect(&TokenKind::RBracket, "']' to close observation")?;
-            return Ok(ObservationExpression::Observation(Box::new(comp)));
+            return Ok(ObservationExpression::Observation {
+                expression: Box::new(comp),
+                span: self.span_from(start),
+            });
         }
         if self.eat(&TokenKind::LParen) {
             let inner = self.parse_observation_expression()?;
@@ -532,7 +560,7 @@ mod tests {
     fn parses_single_observation() {
         let p = parse("[ipv4-addr:value = '1.2.3.4']").unwrap();
         match p.expression {
-            ObservationExpression::Observation(_) => {}
+            ObservationExpression::Observation { .. } => {}
             _ => panic!("expected single observation"),
         }
     }
@@ -583,6 +611,7 @@ mod tests {
             ObservationExpression::Qualified {
                 qualifier: Qualifier::Within { seconds },
                 expression,
+                ..
             } => {
                 assert_eq!(seconds, 60.0);
                 match *expression {
@@ -618,5 +647,45 @@ mod tests {
     #[test]
     fn trailing_tokens_error() {
         assert!(parse("[file:name='a'] [file:name='b']").is_err());
+    }
+
+    #[test]
+    fn records_spans_on_comparison_and_path() {
+        let src = "[file:size > 1024]";
+        let p = parse(src).unwrap();
+        let ObservationExpression::Observation { expression, span } = &p.expression else {
+            panic!("expected an observation");
+        };
+        // The observation span covers the whole `[...]` including brackets.
+        assert_eq!(&src[span.start..span.end], "[file:size > 1024]");
+        let ComparisonExpression::Test(c) = expression.as_ref() else {
+            panic!("expected a test");
+        };
+        // The comparison span covers the property test, without the brackets.
+        assert_eq!(&src[c.span.start..c.span.end], "file:size > 1024");
+        // The path span covers only the object path.
+        assert_eq!(&src[c.path.span.start..c.path.span.end], "file:size");
+    }
+
+    #[test]
+    fn records_span_on_qualifier_clause() {
+        let src = "[file:name='a'] WITHIN 60 SECONDS";
+        let p = parse(src).unwrap();
+        let ObservationExpression::Qualified { span, .. } = &p.expression else {
+            panic!("expected a qualified expression");
+        };
+        assert_eq!(&src[span.start..span.end], "WITHIN 60 SECONDS");
+    }
+
+    #[test]
+    fn without_spans_zeroes_every_span() {
+        let a = parse("[file:size > 1024] WITHIN 60 SECONDS").unwrap();
+        let b = parse("   [file:size > 1024]   WITHIN 60 SECONDS   ").unwrap();
+        assert_ne!(a, b, "differing offsets should make the raw ASTs unequal");
+        assert_eq!(
+            a.without_spans(),
+            b.without_spans(),
+            "structurally identical patterns should compare equal without spans"
+        );
     }
 }

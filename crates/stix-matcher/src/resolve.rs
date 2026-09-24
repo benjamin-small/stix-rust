@@ -97,6 +97,7 @@ mod tests {
         ObjectPath {
             object_type: object_type.to_string(),
             steps,
+            span: Default::default(),
         }
     }
 

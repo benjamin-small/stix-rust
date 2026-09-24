@@ -13,10 +13,14 @@
 [EXISTS file:name]
 # IN set
 [ipv4-addr:value IN ('1.1.1.1', '8.8.8.8', '9.9.9.9')]
+# CIDR containment
+[ipv4-addr:value ISSUBSET '10.0.0.0/8']
+[ipv4-addr:value ISSUPERSET '10.0.0.0/8']
 # Nested object paths
 [file:hashes.'SHA-256' = 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f']
 [network-traffic:protocols[0] = 'tcp']
 [x-custom:list[*] = 'y']
+[file:extensions.'start' = 'a']
 # Typed literals
 [file:created = t'2020-01-01T00:00:00Z']
 [artifact:payload_bin = b'aGVsbG8=']

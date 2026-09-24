@@ -216,7 +216,10 @@ fn eval_observation_expression(
     matched: &mut Vec<usize>,
 ) -> Result<bool, MatchError> {
     match expr {
-        ObservationExpression::Observation(comparison) => {
+        ObservationExpression::Observation {
+            expression: comparison,
+            ..
+        } => {
             let mut any = false;
             for (i, obs) in observations.iter().enumerate() {
                 if eval_comparison_expression(comparison, obs, store) {
@@ -269,10 +272,12 @@ mod tests {
             path: ObjectPath {
                 object_type: object_type.to_string(),
                 steps: vec![PathStep::Key(key.to_string())],
+                span: Default::default(),
             },
             operator,
             negated,
             value,
+            span: Default::default(),
         }
     }
 

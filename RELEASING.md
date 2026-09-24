@@ -19,6 +19,9 @@ to crates.io (5 crates), PyPI (`stix-rust`), and npm (`@stix-rust/node`,
 
 ## Cutting a release
 
+Before tagging, update [`CHANGELOG.md`](CHANGELOG.md): rename its `[Unreleased]`
+section to the version being cut and date it.
+
 ```bash
 # from an up-to-date main with a green docs build
 git tag v0.1.0
