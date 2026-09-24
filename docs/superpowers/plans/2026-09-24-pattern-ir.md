@@ -24,7 +24,7 @@
 
 ## Spec Deltas
 
-Three corrections to the spec's data-model sketch, forced by implementation reality. Apply these; do not follow the spec's literal sketch where it conflicts.
+Four corrections to the spec's data-model sketch, forced by implementation reality. Apply these; do not follow the spec's literal sketch where it conflicts.
 
 1. **All `Op` variants are struct variants, not tuple variants.** The spec wrote `And(InstrId, InstrId)`. serde's internally-tagged representation (`#[serde(tag = "op")]`, which the spec requires) **cannot encode tuple variants** — it is a compile error. So `And { lhs, rhs }`, `Or { lhs, rhs }`, `FollowedBy { lhs, rhs }`, `Yield { value }`, `Ret { value }`.
 2. **`Compare`'s operator field is named `operator`, not `op`.** A field named `op` collides with the `#[serde(tag = "op")]` discriminant. `operator` also matches the AST's `Comparison::operator`.

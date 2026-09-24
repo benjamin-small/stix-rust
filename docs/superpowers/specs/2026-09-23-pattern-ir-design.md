@@ -290,7 +290,9 @@ Precisely four AST changes, chosen to be minimal:
 **The combinator variants deliberately get no span.** `And`, `Or` and `FollowedBy`
 at both tiers derive their extent as the union of their children's spans, so
 storing one would be redundant state that structural editing must then keep
-consistent. A `span_of(instr)` helper computes the union on demand.
+consistent. `Program::span_of(block, instr)` computes the union on demand; it is a
+method on `Program` rather than on `Instruction` because resolving an `Observe`
+without a span of its own crosses from `main` into the comparison block it names.
 
 Converting `Observation` from a tuple variant to a struct variant is the one
 non-additive AST change in this design: its serialized form goes from
@@ -390,9 +392,12 @@ instructions are not.
 `Program` and everything under it derive `Serialize`/`Deserialize`, matching the
 AST's existing treatment.
 
-- `schema_version: u32` is `1`, checked on deserialize; any other value is a typed
+- `schema_version: u32` is `1`, checked by `validate()`; any other value is a typed
   error. Versioning from day one, because the IR schema becomes a public contract
-  the moment sub-project E exposes it through the bindings.
+  the moment sub-project E exposes it through the bindings. The check lives in
+  `validate()` rather than in a custom `Deserialize`, so that deserialization stays
+  a plain derive and there is exactly one place where a program is pronounced
+  well-formed.
 - `Op` serializes **internally tagged** (`{"op": "compare", …}`) rather than serde's
   default externally-tagged form. Self-describing and readable matters more than
   compactness for a format whose purpose is consumption by other tools.
