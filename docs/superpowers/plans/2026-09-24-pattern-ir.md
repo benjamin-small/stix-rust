@@ -2817,9 +2817,12 @@ is no separate destination field. Instructions carry the byte span of the source
 text they came from.
 
 `ir::render` goes the other way, producing *canonical* pattern text — normalized
-whitespace, `!=` rather than `<>`, and parentheses only where precedence needs
-them. Rendering then reparsing recovers the same AST, which makes canonical text
-a usable basis for comparing two patterns:
+whitespace, parentheses only where precedence needs them, and `!=` as the sole
+spelling of not-equal (the grammar's other spelling, `<>`, is not currently
+accepted by this crate's lexer; see
+[issue #29](https://github.com/benjamin-small/stix-rust/issues/29)). Rendering
+then reparsing recovers the same AST, which makes canonical text a usable
+basis for comparing two patterns:
 
 ```rust
 let text = stix::pattern::ir::render(&program);
