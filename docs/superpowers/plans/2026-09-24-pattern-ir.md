@@ -790,7 +790,7 @@ mod render;
 mod validate;
 
 pub use instr::{
-    Block, BlockId, BlockKind, Instruction, InstrId, Op, Operand, Program, SCHEMA_VERSION,
+    Block, BlockId, BlockKind, InstrId, Instruction, Op, Operand, Program, SCHEMA_VERSION,
 };
 pub use lower::lower;
 pub use render::render;
@@ -972,7 +972,9 @@ use crate::ast::{
     Pattern, Qualifier,
 };
 use crate::error::Span;
-use crate::ir::{Block, BlockId, BlockKind, Instruction, InstrId, Op, Operand, Program, SCHEMA_VERSION};
+use crate::ir::{
+    Block, BlockId, BlockKind, InstrId, Instruction, Op, Operand, Program, SCHEMA_VERSION,
+};
 
 /// Lower a parsed pattern into its three-address representation.
 ///
@@ -1277,8 +1279,12 @@ use std::fmt::Write as _;
 use crate::ast::ComparisonOperator;
 use crate::ir::{Block, BlockKind, InstrId, Op, Operand, Program};
 
-/// Column at which the operand list starts, so listings line up.
-const OPERAND_COL: usize = 17;
+/// Width of the mnemonic field, so operands line up in a column.
+///
+/// Every line's prefix is exactly 7 characters — `"  t0 = "` for an instruction
+/// that names a result, `"       "` for a terminator that does not — so padding
+/// the mnemonic to a fixed width is all the alignment this format needs.
+const MNEMONIC_WIDTH: usize = 12;
 
 impl Program {
     /// Render this program as a human-readable listing.
@@ -1335,7 +1341,7 @@ fn write_block(out: &mut String, b: &Block, names: &HashMap<InstrId, String>) {
             None => "       ".to_string(),
         };
         let (mnemonic, operands) = describe(&i.op, names);
-        let padded = format!("{mnemonic:<width$}", width = OPERAND_COL - dest.len().min(OPERAND_COL));
+        let padded = format!("{mnemonic:<MNEMONIC_WIDTH$}");
         if operands.is_empty() {
             let _ = writeln!(out, "{dest}{}", padded.trim_end());
         } else {
@@ -1430,7 +1436,7 @@ In `crates/stix-pattern/src/ir/mod.rs`, uncomment `mod print;`. It exports no na
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test -p stix-pattern --lib ir::print`
-Expected: PASS — four tests. If the column alignment is off by a space, adjust `OPERAND_COL` until the expected strings in Step 1 match; those strings are the specification of the format.
+Expected: PASS — four tests. The expected strings in Step 1 are the specification of the format: every line has a 7-character prefix and a 12-character mnemonic field. If a line disagrees, the bug is in `describe` or in `MNEMONIC_WIDTH`, not in the expected strings.
 
 - [ ] **Step 6: Check clippy and commit**
 
@@ -1462,7 +1468,10 @@ Create `crates/stix-pattern/src/ir/validate.rs` with only this test module:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::{lower, Block, BlockId, BlockKind, Instruction, InstrId, Op, Operand, Program, SCHEMA_VERSION};
+    use crate::ir::{
+        lower, Block, BlockId, BlockKind, InstrId, Instruction, Op, Operand, Program,
+        SCHEMA_VERSION,
+    };
     use crate::parse;
 
     fn valid() -> Program {
