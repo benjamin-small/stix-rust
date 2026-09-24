@@ -24,8 +24,8 @@
 //! Deserializing a [`Program`] does **not** check its invariants. Call
 //! [`Program::validate`] before using one that came from outside this process:
 //! it is what rejects the shapes that would make [`render`] produce text that
-//! does not parse, blow up quadratically, or overflow the stack. See
-//! [`MAX_DEPTH`] for the nesting limit it enforces.
+//! does not parse, grow exponentially, or overflow the stack. See [`MAX_DEPTH`]
+//! for the nesting limit it enforces.
 
 mod instr;
 mod lower;

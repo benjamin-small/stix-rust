@@ -280,10 +280,9 @@ block main (observation):
 
         // Every instruction line starts its mnemonic in the same column, whether it
         // names a result or not.
-        let instruction_lines: Vec<&str> = listing
-            .lines()
-            .filter(|l| l.starts_with("  ") || l.starts_with("   "))
-            .collect();
+        // Block headers start at column zero; instruction lines are indented.
+        let instruction_lines: Vec<&str> =
+            listing.lines().filter(|l| l.starts_with("  ")).collect();
         let mnemonic_columns: Vec<usize> = instruction_lines
             .iter()
             .map(|l| match l.find(" = ") {
@@ -310,7 +309,7 @@ block main (observation):
     }
 
     #[test]
-    fn escapes_quotes_in_start_stop_timestamps() {
+    fn escapes_quotes_in_a_start_stop_listing() {
         let prog =
             lower(&parse(r"[file:name='a'] START t'2020\'x' STOP t'2021'").unwrap());
         let listing = prog.to_listing();

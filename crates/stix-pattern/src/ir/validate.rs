@@ -20,9 +20,11 @@ use crate::ir::{Block, BlockId, BlockKind, InstrId, Op, Operand, Program, SCHEMA
 /// of any size passes as long as no single expression nests further than this.
 ///
 /// The value is set an order of magnitude below the shallowest depth at which
-/// rendering was measured to overflow — 2,192 frames, on an unoptimized build
-/// running on a 2 MiB thread stack, which is the smallest stack Rust gives a
-/// spawned thread.
+/// overflow was measured. Rendering alone first overflowed at depth 2,924, and a
+/// full `parse` → `lower` → `render` of a flat `AND` chain at 2,192 — both on an
+/// unoptimized build running on a 2 MiB thread stack, which is the smallest stack
+/// Rust gives a spawned thread. An optimized build and the 8 MiB main thread each
+/// have several times more headroom than that.
 pub const MAX_DEPTH: u32 = 256;
 
 /// Whether a literal is renderable — i.e. not a non-finite float.
