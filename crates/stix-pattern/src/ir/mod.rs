@@ -26,6 +26,13 @@
 //! it is what rejects the shapes that would make [`render`] produce text that
 //! does not parse, grow exponentially, or overflow the stack. See [`MAX_DEPTH`]
 //! for the nesting limit it enforces.
+//!
+//! One gap remains, and `validate` does not close it: its single-use rule
+//! constrains *value* references, not *block* references, so several `Observe`
+//! instructions may target one comparison block and `render` will re-render that
+//! block per use. Rendered output is therefore bounded quadratically rather than
+//! linearly in the size of the program. See
+//! [issue #33](https://github.com/benjamin-small/stix-rust/issues/33).
 
 mod instr;
 mod lower;

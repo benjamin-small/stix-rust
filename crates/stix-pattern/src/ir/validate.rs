@@ -25,6 +25,11 @@ use crate::ir::{Block, BlockId, BlockKind, InstrId, Op, Operand, Program, SCHEMA
 /// unoptimized build running on a 2 MiB thread stack, which is the smallest stack
 /// Rust gives a spawned thread. An optimized build and the 8 MiB main thread each
 /// have several times more headroom than that.
+///
+/// The bound exists only because [`render`](crate::ir::render) is recursive. Making
+/// it iterative would let the bound be dropped, restoring the unconditional
+/// guarantee that every program [`lower`](crate::ir::lower) produces validates —
+/// tracked as [issue #32](https://github.com/benjamin-small/stix-rust/issues/32).
 pub const MAX_DEPTH: u32 = 256;
 
 /// Whether a literal is renderable — i.e. not a non-finite float.
@@ -122,6 +127,11 @@ pub enum IrError {
     /// exponential in the number of instructions. Requiring each value to have
     /// at most one consumer keeps the IR a tree, which is what
     /// [`render`](crate::ir::render) already assumes.
+    ///
+    /// This covers values only. Blocks remain shareable — several `Observe`s may
+    /// target one comparison block — so output is bounded quadratically, not
+    /// linearly, in the size of the program. See
+    /// [issue #33](https://github.com/benjamin-small/stix-rust/issues/33).
     #[error("instruction {instr} references value {value}, which is already used elsewhere")]
     MultipleUses {
         /// The referencing instruction.

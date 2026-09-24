@@ -375,9 +375,24 @@ Rules:
   `Ret`; terminators appear nowhere else.
 - Tier ops stay in their tier: `Load`/`Compare`/`Yield` only in comparison blocks;
   `Observe`/`FollowedBy`/`Within`/`Repeats`/`StartStop`/`Ret` only in `main`.
-- Operand shape matches the operator: `Exists` carries `Operand::None`, `In` carries
-  `Operand::Set`, all others carry `Operand::Literal`.
+- Operand shape matches the operator: `Exists` carries `Operand::Absent`, `In` carries
+  a non-empty `Operand::Set`, all others carry `Operand::Literal`.
 - `InstrId`s are globally unique; `BlockId`s are unique.
+- `Compare.lhs` names a `Load`; `Exists` is never `negated`.
+- `main.kind` is `Main` and every entry in `blocks` is `Comparison`.
+- **No value is referenced more than once.** Pattern text cannot name a shared value,
+  so `render` must duplicate a shared subexpression — a DAG was never faithfully
+  representable as text. Single use makes the IR a tree, which `render` already
+  assumes, and bounds rendered output in the size of the program. Zero uses stays
+  legal (see dead instructions below). *Block* references are not covered: several
+  `Observe`s may target one comparison block, which leaves render cost quadratic
+  rather than linear — tracked as
+  [issue #33](https://github.com/benjamin-small/stix-rust/issues/33).
+- **Nesting does not exceed `ir::MAX_DEPTH`.** `render` is recursive, so an
+  arbitrarily deep program would overflow the stack; the bound was set from measured
+  overflow depths with a wide margin, low enough to stay safe on wasm's 1 MiB stack.
+  Removing it means making `render` iterative —
+  [issue #32](https://github.com/benjamin-small/stix-rust/issues/32).
 
 **Dead instructions are legal.** An editor mid-edit routinely holds an orphaned
 instruction it is about to rewire, and a validator that rejects that is a validator
@@ -408,7 +423,7 @@ AST's existing treatment.
 ## Testing
 
 - **Corpus round-trip** (`tests/ir_roundtrip.rs`): every pattern in
-  `tests/fixtures/valid_patterns.txt` — 26 of them — is lowered, validated,
+  `tests/fixtures/valid_patterns.txt` — 29 of them — is lowered, validated,
   rendered, reparsed, and compared to the original AST modulo spans. This is the
   primary proof obligation of sub-project B.
 - **Listing snapshots**: a handful of representative patterns (simple comparison,
@@ -446,8 +461,16 @@ remains true after this lands.
 1. `lower` is total over the AST — every pattern in the conformance corpus lowers
    without panic.
 2. `parse(render(lower(ast))).without_spans() == ast.without_spans()` holds for all
-   26 corpus patterns.
-3. `validate()` accepts every lowered program and rejects each hand-built violation
-   with the correct typed error.
+   29 corpus patterns.
+3. `validate()` accepts every lowered program that nests no deeper than
+   `ir::MAX_DEPTH`, and rejects each hand-built violation with the correct typed
+   error. The qualification is real: the parser uses loops for left-associated
+   chains, so a flat chain of more than `MAX_DEPTH` terms parses, lowers and renders
+   correctly but fails `validate` with `TooDeep`. It is accepted because the
+   idiomatic way to express many values is a set — `IN ('a', 'b', …)` is one
+   instruction at depth 3 however large it grows — so realistic patterns are
+   unaffected, and a low bound is what keeps the wasm binding safe.
+   [Issue #32](https://github.com/benjamin-small/stix-rust/issues/32) tracks removing
+   it.
 4. A `Program` survives a JSON serialize/deserialize round trip unchanged.
 5. `cargo test` green workspace-wide, `cargo clippy` clean, `missing_docs` satisfied.

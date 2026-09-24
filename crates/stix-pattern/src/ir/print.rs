@@ -271,7 +271,8 @@ block main (observation):
 
     #[test]
     fn columns_stay_aligned_past_the_tenth_ordinal() {
-        // Six terms give twelve comparison-tier results, so ordinals reach t10.
+        // Six terms give twelve Load/Compare results plus five Ands = seventeen
+        // comparison-tier results, so ordinals reach t16 and cross into two digits.
         let terms: Vec<String> = (0..6).map(|i| format!("file:size > {i}")).collect();
         let src = format!("[{}]", terms.join(" AND "));
         let prog = lower(&parse(&src).unwrap());
