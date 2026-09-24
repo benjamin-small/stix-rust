@@ -55,6 +55,40 @@ fn every_corpus_pattern_round_trips() {
     );
 }
 
+/// `Program::validate` enforces that each value has at most one consumer, which
+/// is only a safe rule if `lower` never produces a shared value. Corpus patterns
+/// combined pairwise exercise every combinator and qualifier over every leaf
+/// shape, which is where sharing would show up if lowering ever introduced it.
+#[test]
+fn lowering_never_shares_a_value() {
+    let patterns: Vec<&str> = lines(CORPUS).map(|(_, src)| src).collect();
+    let mut failures = Vec::new();
+    let mut checked = 0usize;
+    for a in &patterns {
+        for b in &patterns {
+            for combined in [
+                format!("({a}) AND ({b})"),
+                format!("({a}) OR ({b})"),
+                format!("({a}) FOLLOWEDBY ({b})"),
+                format!("(({a}) OR ({b})) WITHIN 60 SECONDS"),
+                format!("(({a}) AND ({b})) REPEATS 3 TIMES"),
+            ] {
+                let ast = parse(&combined).expect(&combined);
+                checked += 1;
+                if let Err(e) = lower(&ast).validate() {
+                    failures.push(format!("{combined} -> {e}"));
+                }
+            }
+        }
+    }
+    assert!(checked > 3000, "expected a broad sample, checked {checked}");
+    assert!(
+        failures.is_empty(),
+        "lowered programs should never share a value:\n{}",
+        failures.join("\n")
+    );
+}
+
 #[test]
 fn rendering_is_idempotent() {
     // Canonical output is a fixed point: rendering it again changes nothing.
