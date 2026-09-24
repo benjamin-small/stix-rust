@@ -378,6 +378,8 @@ The crates are developed test-first; `stix-pattern` additionally ships a
 conformance corpus of valid/invalid patterns under
 `crates/stix-pattern/tests/fixtures/`.
 
+See [docs/testing.md](docs/testing.md) for the test scope and current measured coverage status. Runtime and release configuration are described in [docs/configuration.md](docs/configuration.md).
+
 ---
 
 ## Roadmap
@@ -403,6 +405,8 @@ warnings` clean.
 ---
 
 ## License
+
+The workspace manifests declare `MIT OR Apache-2.0`. See [docs/licensing.md](docs/licensing.md) for the repository-wide licensing record.
 
 Licensed under either of
 
