@@ -112,7 +112,11 @@ fn render_observation(
         }
         Op::StartStop { input, start, stop } => {
             render_observation(program, block, *input, 4, out);
-            out.push_str(&format!(" START t'{start}' STOP t'{stop}'"));
+            out.push_str(&format!(
+                " START t'{}' STOP t'{}'",
+                escape_string(start),
+                escape_string(stop)
+            ));
         }
         // Not valid at this tier; skip rather than panic.
         _ => {}
@@ -313,12 +317,18 @@ pub(crate) fn render_literal(lit: &Literal) -> String {
 
 /// Render a `WITHIN` window. The parser accepts an integer or a float here, so a
 /// whole number renders without a decimal point.
+///
+/// Falls back to [`render_float`] when the value is not exactly representable as
+/// an `i64`, because `as i64` saturates rather than failing — which would
+/// silently change the number.
 pub(crate) fn render_seconds(seconds: f64) -> String {
     if seconds.fract() == 0.0 && seconds.is_finite() {
-        format!("{}", seconds as i64)
-    } else {
-        format!("{seconds}")
+        let as_int = seconds as i64;
+        if as_int as f64 == seconds {
+            return format!("{as_int}");
+        }
     }
+    render_float(seconds)
 }
 
 #[cfg(test)]
@@ -498,6 +508,30 @@ mod tests {
         assert_eq!(
             round("[file:name='a'] START t'2020-01-01T00:00:00Z' STOP t'2020-01-02T00:00:00Z'"),
             "[file:name = 'a'] START t'2020-01-01T00:00:00Z' STOP t'2020-01-02T00:00:00Z'"
+        );
+    }
+
+    #[test]
+    fn escapes_quotes_in_start_stop_timestamps() {
+        // parse_timestamp_string does no RFC3339 validation, so a quote can reach
+        // the IR and must be re-escaped on the way out.
+        assert_round_trips(r"[file:name='a'] START t'2020-01-01T00:00:00Z\'x' STOP t'2020-01-02T00:00:00Z'");
+    }
+
+    #[test]
+    fn large_within_windows_survive_the_round_trip() {
+        // `as i64` saturates; a whole number beyond i64::MAX must not be rendered
+        // through the integer path.
+        assert_round_trips("[file:name='a'] WITHIN 10000000000000000000.0 SECONDS");
+        // The ordinary whole-number case still renders without a decimal point.
+        assert_eq!(
+            round("[file:name='a'] WITHIN 60 SECONDS"),
+            "[file:name = 'a'] WITHIN 60 SECONDS"
+        );
+        // A fractional window keeps its fraction.
+        assert_eq!(
+            round("[file:name='a'] WITHIN 0.5 SECONDS"),
+            "[file:name = 'a'] WITHIN 0.5 SECONDS"
         );
     }
 }
