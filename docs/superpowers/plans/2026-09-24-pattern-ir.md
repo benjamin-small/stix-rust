@@ -2531,7 +2531,7 @@ Change the `crate::ir::render_literal(...)` call sites in `print.rs` to bare `re
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test -p stix-pattern --lib ir::`
-Expected: PASS — all of Tasks 2–6's tests, including the eighteen render tests.
+Expected: PASS — all of Tasks 2–6's tests, including the seventeen render tests.
 
 - [ ] **Step 6: Check clippy and commit**
 
