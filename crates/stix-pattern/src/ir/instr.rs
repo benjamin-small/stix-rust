@@ -215,9 +215,7 @@ mod tests {
                     },
                     Instruction {
                         id: InstrId(2),
-                        op: Op::Yield {
-                            value: InstrId(1),
-                        },
+                        op: Op::Yield { value: InstrId(1) },
                         span: None,
                     },
                 ],
@@ -233,9 +231,7 @@ mod tests {
                     },
                     Instruction {
                         id: InstrId(4),
-                        op: Op::Ret {
-                            value: InstrId(3),
-                        },
+                        op: Op::Ret { value: InstrId(3) },
                         span: None,
                     },
                 ],

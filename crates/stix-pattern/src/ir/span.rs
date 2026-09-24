@@ -142,7 +142,10 @@ mod tests {
             .iter()
             .find(|i| matches!(i.op, Op::And { .. }))
             .expect("an and");
-        assert_eq!(text_of(src, block.id, and.id), "file:size > 1 AND file:name = 'a'");
+        assert_eq!(
+            text_of(src, block.id, and.id),
+            "file:size > 1 AND file:name = 'a'"
+        );
     }
 
     #[test]

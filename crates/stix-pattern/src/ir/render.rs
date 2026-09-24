@@ -378,8 +378,8 @@ mod tests {
     fn assert_round_trips(src: &str) {
         let original = parse(src).unwrap();
         let text = render(&lower(&original));
-        let reparsed = parse(&text)
-            .unwrap_or_else(|e| panic!("rendered text failed to parse: {text}\n{e}"));
+        let reparsed =
+            parse(&text).unwrap_or_else(|e| panic!("rendered text failed to parse: {text}\n{e}"));
         assert_eq!(
             reparsed.without_spans(),
             original.without_spans(),
@@ -490,7 +490,10 @@ mod tests {
         ] {
             let s = render_float(v);
             assert!(!s.contains('e'), "{v:?} rendered as {s}");
-            assert!(s.contains('.'), "{v:?} rendered as {s}, needs a decimal point");
+            assert!(
+                s.contains('.'),
+                "{v:?} rendered as {s}, needs a decimal point"
+            );
             assert_eq!(s.parse::<f64>().unwrap(), v, "{v:?} rendered as {s}");
         }
     }
@@ -509,7 +512,10 @@ mod tests {
             round("[file:magic_number_hex = h'cafebabe']"),
             "[file:magic_number_hex = h'cafebabe']"
         );
-        assert_eq!(round("[file:is_encrypted = true]"), "[file:is_encrypted = true]");
+        assert_eq!(
+            round("[file:is_encrypted = true]"),
+            "[file:is_encrypted = true]"
+        );
     }
 
     #[test]
@@ -518,7 +524,10 @@ mod tests {
             round("[file:hashes.'SHA-256' = 'abc']"),
             "[file:hashes.'SHA-256' = 'abc']"
         );
-        assert_eq!(round("[file:hashes.MD5 = 'abc']"), "[file:hashes.MD5 = 'abc']");
+        assert_eq!(
+            round("[file:hashes.MD5 = 'abc']"),
+            "[file:hashes.MD5 = 'abc']"
+        );
     }
 
     #[test]
@@ -527,7 +536,10 @@ mod tests {
             round("[network-traffic:protocols[0] = 'tcp']"),
             "[network-traffic:protocols[0] = 'tcp']"
         );
-        assert_eq!(round("[x-custom:list[*] = 'y']"), "[x-custom:list[*] = 'y']");
+        assert_eq!(
+            round("[x-custom:list[*] = 'y']"),
+            "[x-custom:list[*] = 'y']"
+        );
     }
 
     #[test]
@@ -548,7 +560,9 @@ mod tests {
     fn escapes_quotes_in_start_stop_timestamps() {
         // parse_timestamp_string does no RFC3339 validation, so a quote can reach
         // the IR and must be re-escaped on the way out.
-        assert_round_trips(r"[file:name='a'] START t'2020-01-01T00:00:00Z\'x' STOP t'2020-01-02T00:00:00Z'");
+        assert_round_trips(
+            r"[file:name='a'] START t'2020-01-01T00:00:00Z\'x' STOP t'2020-01-02T00:00:00Z'",
+        );
     }
 
     /// Un-ignore this when #30 lands: it pins the one documented hole in the

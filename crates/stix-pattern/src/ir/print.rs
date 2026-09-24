@@ -66,12 +66,7 @@ fn produces_value(op: &Op) -> bool {
     !matches!(op, Op::Yield { .. } | Op::Ret { .. })
 }
 
-fn write_block(
-    out: &mut String,
-    b: &Block,
-    names: &HashMap<InstrId, String>,
-    name_width: usize,
-) {
+fn write_block(out: &mut String, b: &Block, names: &HashMap<InstrId, String>, name_width: usize) {
     match b.kind {
         BlockKind::Comparison => {
             let _ = writeln!(out, "block b{} (comparison):", b.id.0);
@@ -97,7 +92,10 @@ fn write_block(
 }
 
 fn name_of(id: InstrId, names: &HashMap<InstrId, String>) -> String {
-    names.get(&id).cloned().unwrap_or_else(|| format!("%{}", id.0))
+    names
+        .get(&id)
+        .cloned()
+        .unwrap_or_else(|| format!("%{}", id.0))
 }
 
 /// The mnemonic and operand text for one op.
@@ -117,7 +115,9 @@ fn describe(op: &Op, names: &HashMap<InstrId, String>) -> (String, String) {
             m.push_str(mnemonic_for(*operator));
             let operands = match rhs {
                 Operand::Absent => name_of(*lhs, names),
-                Operand::Literal(lit) => format!("{}, {}", name_of(*lhs, names), render_literal(lit)),
+                Operand::Literal(lit) => {
+                    format!("{}, {}", name_of(*lhs, names), render_literal(lit))
+                }
                 Operand::Set(items) => {
                     let inner: Vec<String> = items.iter().map(render_literal).collect();
                     format!("{}, ({})", name_of(*lhs, names), inner.join(", "))
@@ -234,11 +234,16 @@ block main (observation):
     #[test]
     fn prints_exists_and_in() {
         let prog = lower(&parse("[EXISTS file:name]").unwrap());
-        assert!(prog.to_listing().contains("t1 = exists      t0"), "{}", prog.to_listing());
+        assert!(
+            prog.to_listing().contains("t1 = exists      t0"),
+            "{}",
+            prog.to_listing()
+        );
 
         let prog = lower(&parse("[ipv4-addr:value IN ('1.1.1.1', '8.8.8.8')]").unwrap());
         assert!(
-            prog.to_listing().contains("t1 = in          t0, ('1.1.1.1', '8.8.8.8')"),
+            prog.to_listing()
+                .contains("t1 = in          t0, ('1.1.1.1', '8.8.8.8')"),
             "{}",
             prog.to_listing()
         );
@@ -247,7 +252,11 @@ block main (observation):
     #[test]
     fn marks_negation() {
         let prog = lower(&parse("[file:name NOT = 'x']").unwrap());
-        assert!(prog.to_listing().contains("t1 = not eq      t0, 'x'"), "{}", prog.to_listing());
+        assert!(
+            prog.to_listing().contains("t1 = not eq      t0, 'x'"),
+            "{}",
+            prog.to_listing()
+        );
     }
 
     #[test]
@@ -311,9 +320,11 @@ block main (observation):
 
     #[test]
     fn escapes_quotes_in_a_start_stop_listing() {
-        let prog =
-            lower(&parse(r"[file:name='a'] START t'2020\'x' STOP t'2021'").unwrap());
+        let prog = lower(&parse(r"[file:name='a'] START t'2020\'x' STOP t'2021'").unwrap());
         let listing = prog.to_listing();
-        assert!(listing.contains(r"startstop   o0, '2020\'x', '2021'"), "{listing}");
+        assert!(
+            listing.contains(r"startstop   o0, '2020\'x', '2021'"),
+            "{listing}"
+        );
     }
 }

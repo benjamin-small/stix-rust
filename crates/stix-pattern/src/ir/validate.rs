@@ -52,7 +52,9 @@ pub enum IrError {
         expected: u32,
     },
     /// An instruction referenced a value that is not defined earlier in its block.
-    #[error("instruction {instr} references value {value}, which is not defined earlier in its block")]
+    #[error(
+        "instruction {instr} references value {value}, which is not defined earlier in its block"
+    )]
     UnknownValue {
         /// The referencing instruction.
         instr: u32,
@@ -306,7 +308,10 @@ impl Program {
             }
 
             let tier_ok = match (&instr.op, b.kind) {
-                (Op::Load { .. } | Op::Compare { .. } | Op::Yield { .. }, BlockKind::Comparison) => true,
+                (
+                    Op::Load { .. } | Op::Compare { .. } | Op::Yield { .. },
+                    BlockKind::Comparison,
+                ) => true,
                 (
                     Op::Observe { .. }
                     | Op::FollowedBy { .. }
@@ -382,7 +387,8 @@ impl Program {
                     if !shape_ok {
                         return Err(IrError::OperandShape {
                             instr: instr.id.0,
-                            detail: "EXISTS takes no operand, IN takes a set, others take a literal",
+                            detail:
+                                "EXISTS takes no operand, IN takes a set, others take a literal",
                         });
                     }
                     let finite = match rhs {
@@ -527,7 +533,10 @@ mod tests {
     fn rejects_a_missing_terminator() {
         let mut p = valid();
         p.blocks[0].instructions.pop();
-        assert!(matches!(p.validate(), Err(IrError::MissingTerminator { .. })));
+        assert!(matches!(
+            p.validate(),
+            Err(IrError::MissingTerminator { .. })
+        ));
     }
 
     #[test]
@@ -542,7 +551,10 @@ mod tests {
                 span: None,
             },
         );
-        assert!(matches!(p.validate(), Err(IrError::MisplacedTerminator { .. })));
+        assert!(matches!(
+            p.validate(),
+            Err(IrError::MisplacedTerminator { .. })
+        ));
     }
 
     #[test]
@@ -578,7 +590,10 @@ mod tests {
         let mut p = valid();
         let dup = p.blocks[0].instructions[0].clone();
         p.blocks[0].instructions.insert(1, dup);
-        assert!(matches!(p.validate(), Err(IrError::DuplicateInstrId { .. })));
+        assert!(matches!(
+            p.validate(),
+            Err(IrError::DuplicateInstrId { .. })
+        ));
     }
 
     #[test]
@@ -641,7 +656,10 @@ mod tests {
         let mut p = valid();
         let dup = p.blocks[0].clone();
         p.blocks.push(dup);
-        assert!(matches!(p.validate(), Err(IrError::DuplicateBlockId { .. })));
+        assert!(matches!(
+            p.validate(),
+            Err(IrError::DuplicateBlockId { .. })
+        ));
     }
 
     #[test]
@@ -715,7 +733,11 @@ mod tests {
             Op::Compare { rhs, .. } => *rhs = Operand::Set(Vec::new()),
             other => panic!("expected a compare, got {other:?}"),
         }
-        assert!(matches!(p.validate(), Err(IrError::OperandShape { .. })), "{:?}", p.validate());
+        assert!(
+            matches!(p.validate(), Err(IrError::OperandShape { .. })),
+            "{:?}",
+            p.validate()
+        );
     }
 
     #[test]
@@ -755,21 +777,33 @@ mod tests {
             Op::Compare { negated, .. } => *negated = true,
             other => panic!("expected a compare, got {other:?}"),
         }
-        assert!(matches!(p.validate(), Err(IrError::NegatedExists { .. })), "{:?}", p.validate());
+        assert!(
+            matches!(p.validate(), Err(IrError::NegatedExists { .. })),
+            "{:?}",
+            p.validate()
+        );
     }
 
     #[test]
     fn rejects_a_main_block_of_the_wrong_kind() {
         let mut p = valid();
         p.main.kind = BlockKind::Comparison;
-        assert!(matches!(p.validate(), Err(IrError::WrongBlockKind { .. })), "{:?}", p.validate());
+        assert!(
+            matches!(p.validate(), Err(IrError::WrongBlockKind { .. })),
+            "{:?}",
+            p.validate()
+        );
     }
 
     #[test]
     fn rejects_a_comparison_block_of_the_wrong_kind() {
         let mut p = valid();
         p.blocks[0].kind = BlockKind::Main;
-        assert!(matches!(p.validate(), Err(IrError::WrongBlockKind { .. })), "{:?}", p.validate());
+        assert!(
+            matches!(p.validate(), Err(IrError::WrongBlockKind { .. })),
+            "{:?}",
+            p.validate()
+        );
     }
 
     #[test]
