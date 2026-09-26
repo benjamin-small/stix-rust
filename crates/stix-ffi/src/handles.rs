@@ -20,6 +20,26 @@ impl Pattern {
         // Serialization of the AST is infallible in practice; fall back to "null".
         serde_json::to_string(&self.inner).unwrap_or_else(|_| "null".to_string())
     }
+
+    /// The pattern lowered to the IR, serialized as compact JSON.
+    pub fn ir_json(&self) -> String {
+        // As with `to_json`, serialization is infallible in practice.
+        serde_json::to_string(&self.lowered()).unwrap_or_else(|_| "null".to_string())
+    }
+
+    /// The IR as a human-readable listing; see `Program::to_listing`.
+    pub fn ir_listing(&self) -> String {
+        self.lowered().to_listing()
+    }
+
+    /// Canonical pattern text, rendered back from the IR.
+    pub fn canonical(&self) -> String {
+        stix::pattern::ir::render(&self.lowered())
+    }
+
+    fn lowered(&self) -> stix::pattern::ir::Program {
+        stix::pattern::ir::lower(&self.inner)
+    }
 }
 
 /// Opaque handle around an imported bundle.
@@ -92,5 +112,30 @@ mod tests {
         };
         assert!(o.matched);
         assert_eq!(o.observations, vec![0, 2]);
+    }
+
+    const TWO_OBSERVATIONS: &str = "[file:size > 1024] OR [file:name = 'a']";
+
+    #[test]
+    fn pattern_ir_json_has_blocks_and_main() {
+        let handle = Pattern::new(stix::parse(TWO_OBSERVATIONS).unwrap());
+        let ir: serde_json::Value = serde_json::from_str(&handle.ir_json()).unwrap();
+        assert_eq!(ir["schema_version"], 1);
+        assert_eq!(ir["blocks"].as_array().unwrap().len(), 2);
+        assert_eq!(ir["main"]["kind"], "main");
+    }
+
+    #[test]
+    fn pattern_ir_listing_names_blocks() {
+        let handle = Pattern::new(stix::parse(TWO_OBSERVATIONS).unwrap());
+        let listing = handle.ir_listing();
+        assert!(listing.contains("block b1 (comparison):"), "{listing}");
+        assert!(listing.contains("block main (observation):"), "{listing}");
+    }
+
+    #[test]
+    fn pattern_canonical_normalizes_spacing() {
+        let handle = Pattern::new(stix::parse("[file:size>1024]  OR [file:name='a']").unwrap());
+        assert_eq!(handle.canonical(), TWO_OBSERVATIONS);
     }
 }
