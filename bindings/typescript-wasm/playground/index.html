@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STIX Pattern Playground</title>
+  <link rel="stylesheet" href="playground.css">
+  <script src="mermaid.min.js"></script>
+  <script type="module" src="main.js"></script>
+</head>
+<body>
+  <header>
+    <h1>STIX Pattern Playground</h1>
+    <p>Parse a STIX 2.1 pattern with <a href="../">stix-rust</a>, compiled to
+      WebAssembly, and inspect its AST and IR. Nothing leaves your browser.</p>
+  </header>
+  <div id="load-error" class="banner error" role="alert" hidden></div>
+  <main>
+    <section class="input">
+      <label for="examples">Example</label>
+      <select id="examples"></select>
+      <div class="editor">
+        <div id="backdrop" class="backdrop" aria-hidden="true"></div>
+        <textarea id="pattern" spellcheck="false" autocomplete="off" aria-label="STIX pattern"></textarea>
+      </div>
+      <div id="parse-error" class="banner error" role="status" hidden></div>
+    </section>
+    <section class="output">
+      <nav role="tablist" aria-label="Output">
+        <button role="tab" data-tab="graph">Graph</button>
+        <button role="tab" data-tab="listing">IR listing</button>
+        <button role="tab" data-tab="ast">AST</button>
+        <button role="tab" data-tab="ir">IR JSON</button>
+        <button role="tab" data-tab="canonical">Canonical</button>
+      </nav>
+      <div id="panes">
+        <div class="pane" data-pane="graph" id="graph"></div>
+        <pre class="pane" data-pane="listing" id="listing"></pre>
+        <pre class="pane" data-pane="ast" id="ast"></pre>
+        <pre class="pane" data-pane="ir" id="ir"></pre>
+        <pre class="pane" data-pane="canonical" id="canonical"></pre>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

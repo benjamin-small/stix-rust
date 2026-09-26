@@ -55,3 +55,17 @@ engine.registerType("x-acme-widget", (obj) => ({
 
 Errors are `StixError` subclasses: `ParseError`, `ModelError`, `MatchError`,
 `ValidationError`.
+
+## Playground
+
+`playground/` is a static page that parses a pattern in the browser and shows
+its AST, IR listing, IR JSON, IR graph, and canonical text. It is published at
+`/playground/` on the project's docs site.
+
+To run it locally:
+
+    npm run build:playground
+    python3 -m http.server 8000 -d playground-dist
+
+then open <http://localhost:8000>. Any static server works; it must serve
+`.wasm` as `application/wasm`.
