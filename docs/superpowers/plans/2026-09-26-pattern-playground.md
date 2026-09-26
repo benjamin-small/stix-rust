@@ -1098,13 +1098,16 @@ Create `docs/book/src/playground.md`:
 ```markdown
 # Playground
 
-The [pattern playground](../playground/) parses a STIX pattern in your browser,
+The [pattern playground](playground/) parses a STIX pattern in your browser,
 using this library compiled to WebAssembly. It shows the pattern's AST, its IR
 as a listing, as JSON, and as a graph, and the canonical text rendered back
 from the IR.
 ```
 
-In `introduction.md`, add one sentence near the top pointing to the playground, and link it the same way (`../playground/` resolves from the book root because the book is served at the site root).
+(Top-level chapters render at the site root, so `playground/` — not
+`../playground/` — reaches the sibling directory.)
+
+In `introduction.md`, add one sentence near the top pointing to the playground, and link it the same way (`playground/` resolves from the book root because the book is served at the site root).
 
 - [ ] **Step 3: Verify locally**
 

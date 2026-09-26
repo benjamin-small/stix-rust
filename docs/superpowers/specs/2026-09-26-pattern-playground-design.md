@@ -175,9 +175,10 @@ In `.github/workflows/docs.yml`, `build` job:
 3. In "Assemble site", run `cp -r bindings/typescript-wasm/playground-dist site/playground`.
 
 In the book, add a "Playground" link in `docs/book/src/SUMMARY.md`, pointing at
-`../playground/` or the absolute Pages path, and a sentence in
-`introduction.md`. The book lives outside every area's owned paths, so the
-parent makes this change too.
+`playground/` (top-level chapters render at the site root, so `playground/` —
+not `../playground/` — reaches the sibling directory) or the absolute Pages
+path, and a sentence in `introduction.md`. The book lives outside every
+area's owned paths, so the parent makes this change too.
 
 The result is served at `<pages-url>/playground/`.
 
