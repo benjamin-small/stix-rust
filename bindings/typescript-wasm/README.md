@@ -38,7 +38,10 @@ import { Engine } from "@stix-rust/wasm";
 
 const engine = new Engine();
 const pattern = engine.parsePattern("[ipv4-addr:value = '198.51.100.5']");
-console.log(pattern.ast);
+console.log(pattern.ast);       // parsed AST as a plain JS object
+console.log(pattern.ir);        // lowered IR (schema_version, blocks, main) as a plain JS object
+console.log(pattern.irListing); // human-readable listing of the IR blocks
+console.log(pattern.canonical); // canonical (re-rendered, normalized) pattern text
 
 const bundle = engine.parseBundle(json);
 const result = engine.matchBundle(pattern, bundle);

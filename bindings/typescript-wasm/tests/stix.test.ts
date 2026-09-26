@@ -28,6 +28,15 @@ describe("stix wasm binding", () => {
     expect(JSON.stringify(ast)).toContain("ipv4-addr");
   });
 
+  it("exposes the IR, its listing, and canonical text", () => {
+    const p = new Engine().parsePattern("[file:size>1024]  OR [file:name='a']");
+    expect(p.ir.schema_version).toBe(1);
+    expect(p.ir.blocks).toHaveLength(2);
+    expect(p.ir.main.kind).toBe("main");
+    expect(p.irListing).toContain("block main (observation):");
+    expect(p.canonical).toBe("[file:size > 1024] OR [file:name = 'a']");
+  });
+
   it("reads and iterates bundle objects", () => {
     const engine = new Engine();
     const bundle = engine.parseBundle(BUNDLE);
