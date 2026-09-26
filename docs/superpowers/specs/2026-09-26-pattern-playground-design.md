@@ -62,17 +62,19 @@ The IR is already reachable as `stix::pattern::ir`, because the umbrella crate
 re-exports `stix_pattern` in full. No re-export changes are needed.
 
 **Tests:** unit tests in `stix-ffi` asserting, for
-`[file:size > 1024] OR [file:name = 'a']`: `ir_json` parses as JSON and has a
-`blocks` array with three blocks; `ir_listing` contains `load` and `ret`;
-`canonical` equals `[file:size > 1024] OR [file:name = 'a']`.
+`[file:size > 1024] OR [file:name = 'a']`: `ir_json` parses as JSON, with
+`schema_version` 1, a `blocks` array of two comparison blocks, and a separate
+`main` block; `ir_listing` contains `block main (observation):`; `canonical`
+of the unspaced source `[file:size>1024]  OR [file:name='a']` equals
+`[file:size > 1024] OR [file:name = 'a']`.
 
 Other bindings do not have to expose these methods. They can adopt them later.
 
 ### PR 2 — `typescript-wasm`: bindings + the playground page
 
 **Binding surface** (`bindings/typescript-wasm/src/lib.rs` and `ts/index.ts`):
-add `Pattern.irJson()` (returns a parsed JS object, like `ast()`),
-`Pattern.irListing()` (string), and `Pattern.canonical()` (string). Add them to
+add three getters on `Pattern`, mirroring the existing `ast` getter: `ir`
+(the parsed IR as a JS object), `irListing` (string), and `canonical` (string). Add them to
 the existing vitest suite in `tests/stix.test.ts`.
 
 **Page layout** (`bindings/typescript-wasm/playground/`):
@@ -119,13 +121,17 @@ observations joined by `FOLLOWEDBY ... WITHIN 300 SECONDS`; `REPEATS`; and
 
 - `flowchart TB`. Each block is a `subgraph`, labelled `block N (comparison)` or
   `main`.
-- Each instruction is a node labelled with its mnemonic and immediate operands,
-  for example `load file:size`, `gt 1024`, `within 300s`, or `in ('a','b')`.
+- Each instruction is a node labelled with its line from the IR listing,
+  with the alignment padding removed, for example `t1 = gt t0, 1024` or
+  `yield t1`. Reusing the listing keeps literal and path formatting in Rust.
+  The listing's instruction lines are in the same order as the program's
+  instructions (comparison blocks, then `main`). `irToMermaid(program, listing)`
+  throws if the two counts differ.
   Load/compare nodes, boolean nodes (`and`/`or`) and terminators (`yield`/`ret`)
   each get a distinct Mermaid class.
 - Edges run from each operand (`lhs`, `rhs`, `input`, `value`) to its consumer.
-  Each `observe` node gets a dashed edge to the `yield` node of the block it
-  evaluates.
+  Each `observe` node gets a dashed edge from the `yield` node of the block it
+  evaluates, drawn in the direction the value flows.
 - Node ids are `i<InstrId>`. Every string placed in a label is escaped for
   Mermaid: quotes, brackets, `#`, and `<`/`>` become entity codes.
 - Mermaid runs with `securityLevel: 'strict'` and renders into a container. On a
@@ -140,13 +146,19 @@ Mermaid file, which stays owned by the book. Add `playground-dist/` and
 
 **Tests** (vitest):
 
-- `graph.js`: the output for the example patterns (IR from the Node build) has
+- `graph.js`: the output for every example pattern (IR from the Node build) has
   one `subgraph` per block, one node per instruction, and a dashed edge per
-  `observe`. Label escaping is tested on a string literal containing
+  `observe`. Listing-line parsing handles negated mnemonics, terminators, and
+  string literals containing runs of spaces. Label escaping is tested on a string literal containing
   `"`, `]`, `#` and `<`.
 - `spans.js`: byte→UTF-16 conversion for ASCII and for a multi-byte string.
 - The parse-error message regex matches the `Display` output of a real
   `parsePattern` failure. If the Rust format changes, this test fails.
+
+**Browser check (parent):** area agents have no browser tools. Before merging
+PR 2, the parent builds the playground, serves it locally, and checks it in the
+browser pane: live update, error underline, all five tabs, hovering graph nodes
+and listing lines, dark mode, and phone width.
 
 **Docs:** a short "Playground" section in `bindings/typescript-wasm/README.md`
 explaining how to build and serve it locally (`npm run build:playground`, then
