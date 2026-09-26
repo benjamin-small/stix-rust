@@ -38,7 +38,10 @@ import { Engine } from "@stix-rust/wasm";
 
 const engine = new Engine();
 const pattern = engine.parsePattern("[ipv4-addr:value = '198.51.100.5']");
-console.log(pattern.ast);
+console.log(pattern.ast);       // parsed AST as a plain JS object
+console.log(pattern.ir);        // lowered IR (schema_version, blocks, main) as a plain JS object
+console.log(pattern.irListing); // human-readable listing of the IR blocks
+console.log(pattern.canonical); // canonical (re-rendered, normalized) pattern text
 
 const bundle = engine.parseBundle(json);
 const result = engine.matchBundle(pattern, bundle);
@@ -52,3 +55,17 @@ engine.registerType("x-acme-widget", (obj) => ({
 
 Errors are `StixError` subclasses: `ParseError`, `ModelError`, `MatchError`,
 `ValidationError`.
+
+## Playground
+
+`playground/` is a static page that parses a pattern in the browser and shows
+its AST, IR listing, IR JSON, IR graph, and canonical text. It is published at
+`/playground/` on the project's docs site.
+
+To run it locally:
+
+    npm run build:playground
+    python3 -m http.server 8000 -d playground-dist
+
+then open <http://localhost:8000>. Any static server works; it must serve
+`.wasm` as `application/wasm`.

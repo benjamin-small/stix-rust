@@ -37,6 +37,21 @@ impl Pattern {
     pub fn ast(&self) -> Result<JsValue, JsValue> {
         json_to_js(&self.inner.to_json())
     }
+
+    #[wasm_bindgen(getter)]
+    pub fn ir(&self) -> Result<JsValue, JsValue> {
+        json_to_js(&self.inner.ir_json())
+    }
+
+    #[wasm_bindgen(getter, js_name = irListing)]
+    pub fn ir_listing(&self) -> String {
+        self.inner.ir_listing()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn canonical(&self) -> String {
+        self.inner.canonical()
+    }
 }
 
 #[wasm_bindgen]

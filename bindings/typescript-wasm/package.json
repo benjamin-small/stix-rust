@@ -10,6 +10,7 @@
   "scripts": {
     "build:wasm": "wasm-pack build --target nodejs --out-dir pkg && node -e \"require('fs').rmSync('pkg/.gitignore',{force:true})\"",
     "build:web": "wasm-pack build --target web --out-dir pkg-web",
+    "build:playground": "npm run build:web && node scripts/build-playground.mjs",
     "build": "npm run build:wasm && tsc",
     "test": "npm run build:wasm && tsc && vitest run"
   },

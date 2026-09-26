@@ -21,6 +21,11 @@ export class Pattern {
   get ast(): any {
     try { return this.raw.ast; } catch (e) { throw toStixError(e); }
   }
+  get ir(): any {
+    try { return this.raw.ir; } catch (e) { throw toStixError(e); }
+  }
+  get irListing(): string { return this.raw.irListing; }
+  get canonical(): string { return this.raw.canonical; }
 }
 
 export class Bundle {
