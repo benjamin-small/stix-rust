@@ -43,7 +43,7 @@ function showMark() {
 }
 
 function highlightInstruction(ins) {
-  if (!current || !ins?.span) return showMark();
+  if (!current || current.text !== input.value || !ins?.span) return showMark();
   renderBackdrop(spanToRange(current.text, ins.span), "hl");
 }
 
