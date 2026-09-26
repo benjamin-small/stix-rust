@@ -2,8 +2,13 @@
 
 `@stix-rust/wasm` — a portable WebAssembly build (wasm-bindgen) that runs in
 **Node and the browser**. The API is identical to
-[`@stix-rust/node`](typescript-node.md); on the web target the module is
-initialized asynchronously first.
+[`@stix-rust/node`](typescript-node.md), plus the wasm-only `ir`, `irListing`
+and `canonical` getters on `Pattern`: `ir` returns the lowered IR as a plain
+JS object (`{schema_version, blocks, main}`), `irListing` a human-readable IR
+listing string, and `canonical` the canonical pattern text rendered back from
+the IR. On the web target the module is initialized asynchronously first.
+
+Try these interactively in the [pattern playground](../playground/).
 
 ## Install
 
