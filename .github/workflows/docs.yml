@@ -20,19 +20,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with: { targets: wasm32-unknown-unknown }
       - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
       - name: Install mdbook + mermaid
         run: cargo install mdbook mdbook-mermaid --locked
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
       - name: Build book
         run: mdbook build docs/book
       - name: Build API docs
         run: cargo doc --workspace --no-deps
+      - name: Build playground
+        working-directory: bindings/typescript-wasm
+        run: npm ci && npm run build:playground
       - name: Assemble site
         run: |
           mkdir -p site
           cp -r docs/book/book/* site/
           mkdir -p site/api
           cp -r target/doc/* site/api/
+          cp -r bindings/typescript-wasm/playground-dist site/playground
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

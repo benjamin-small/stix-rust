@@ -8,6 +8,8 @@ the OASIS standard for representing cyber threat intelligence. It does three thi
 2. **Import** STIX objects (SDOs, SCOs) and bundles into a flexible object model.
 3. **Match** patterns against sets of observed objects and tell you what bound.
 
+Try the [pattern playground](playground/) to parse a pattern in your browser right now.
+
 ## What is STIX?
 
 STIX (Structured Threat Information eXpression) is a standardized JSON language for

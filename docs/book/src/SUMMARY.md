@@ -26,4 +26,5 @@
 ---
 
 [API Reference](api.md)
+[Playground](playground.md)
 [Contributing](contributing.md)
