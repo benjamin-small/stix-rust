@@ -38,13 +38,18 @@ select { margin-bottom: 8px; max-width: 100%; font: inherit; }
   font: var(--mono); padding: 10px; margin: 0; width: 100%;
   border: 1px solid var(--border); border-radius: 6px;
   white-space: pre-wrap; overflow-wrap: anywhere;
+  scrollbar-gutter: stable;
 }
 .editor textarea {
   position: relative; display: block; height: 10rem; resize: vertical;
   background: transparent; color: var(--fg);
 }
 .backdrop {
-  position: absolute; inset: 0; overflow: hidden;
+  position: absolute; inset: 0;
+  /* overflow:hidden ignores scrollbar-gutter; overflow:auto reserves the same
+     gutter as the textarea. The scrollbar is kept (hiding it would drop the
+     gutter) but painted transparent, and the element takes no input. */
+  overflow: auto; pointer-events: none; scrollbar-color: transparent transparent;
   color: transparent; background: var(--panel); border-color: transparent;
 }
 .backdrop mark { color: transparent; border-radius: 2px; }

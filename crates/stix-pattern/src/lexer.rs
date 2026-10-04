@@ -182,6 +182,9 @@ impl<'a> Lexer<'a> {
         if self.src.get(self.pos + 1) == Some(&b'=') {
             self.pos += 2;
             self.push(TokenKind::LessThanOrEqual, start);
+        } else if self.src.get(self.pos + 1) == Some(&b'>') {
+            self.pos += 2;
+            self.push(TokenKind::NotEqual, start);
         } else {
             self.pos += 1;
             self.push(TokenKind::LessThan, start);
@@ -205,7 +208,10 @@ impl<'a> Lexer<'a> {
         let start = self.pos;
         debug_assert_eq!(self.src.get(self.pos), Some(&b'\''));
         self.pos += 1; // opening quote
-        let mut out = String::new();
+                       // Collect raw bytes and decode once: the escape bytes `\` and `'` are
+                       // ASCII and never occur inside a multi-byte UTF-8 sequence, and the
+                       // input is a `&str`, so the collected bytes are always valid UTF-8.
+        let mut out: Vec<u8> = Vec::new();
         loop {
             match self.src.get(self.pos) {
                 None => {
@@ -216,24 +222,29 @@ impl<'a> Lexer<'a> {
                 }
                 Some(b'\\') => match self.src.get(self.pos + 1) {
                     Some(b'\'') => {
-                        out.push('\'');
+                        out.push(b'\'');
                         self.pos += 2;
                     }
                     Some(b'\\') => {
-                        out.push('\\');
+                        out.push(b'\\');
                         self.pos += 2;
                     }
                     _ => {
-                        out.push('\\');
+                        out.push(b'\\');
                         self.pos += 1;
                     }
                 },
                 Some(b'\'') => {
                     self.pos += 1; // closing quote
-                    return Ok(out);
+                    return String::from_utf8(out).map_err(|_| {
+                        ParseError::new(
+                            "invalid UTF-8 in string literal",
+                            Span::new(start, self.pos),
+                        )
+                    });
                 }
                 Some(&b) => {
-                    out.push(b as char);
+                    out.push(b);
                     self.pos += 1;
                 }
             }
@@ -268,6 +279,12 @@ impl<'a> Lexer<'a> {
             let v: f64 = text.parse().map_err(|_| {
                 ParseError::new("invalid float literal", Span::new(start, self.pos))
             })?;
+            if !v.is_finite() {
+                return Err(ParseError::new(
+                    "float literal out of range",
+                    Span::new(start, self.pos),
+                ));
+            }
             self.push(TokenKind::Float(v), start);
         } else {
             let v: i64 = text.parse().map_err(|_| {
@@ -434,5 +451,56 @@ mod tests {
     fn tracks_spans() {
         let toks = tokenize("[a:b]").unwrap();
         assert_eq!(toks[0].span, crate::error::Span::new(0, 1)); // '['
+    }
+
+    #[test]
+    fn lexes_diamond_not_equal() {
+        assert_eq!(kinds("<>"), vec![TokenKind::NotEqual]);
+        assert_eq!(
+            kinds("< >"),
+            vec![TokenKind::LessThan, TokenKind::GreaterThan]
+        );
+        assert_eq!(kinds("<="), vec![TokenKind::LessThanOrEqual]);
+    }
+
+    #[test]
+    fn rejects_overflowing_float_literal() {
+        let src = format!("{}.0", "9".repeat(400));
+        let err = tokenize(&src).unwrap_err();
+        assert!(
+            err.to_string().contains("float literal out of range"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn decodes_non_ascii_strings_as_utf8() {
+        assert_eq!(kinds("'café'"), vec![TokenKind::String("café".to_string())]);
+        assert_eq!(kinds("'a😀b'"), vec![TokenKind::String("a😀b".to_string())]);
+        assert_eq!(kinds(r"'é\'é'"), vec![TokenKind::String("é'é".to_string())]);
+        assert_eq!(
+            kinds(r"'日本\\語'"),
+            vec![TokenKind::String("日本\\語".to_string())]
+        );
+    }
+
+    #[test]
+    fn non_ascii_token_spans_are_byte_offsets() {
+        let t = tokenize("'café' =").unwrap();
+        assert_eq!(t[0].span, Span::new(0, 7));
+        assert_eq!(t[1].span, Span::new(8, 9));
+    }
+
+    #[test]
+    fn typed_literals_still_lex() {
+        assert_eq!(
+            kinds("t'2020-01-01T00:00:00Z'"),
+            vec![TokenKind::Timestamp("2020-01-01T00:00:00Z".to_string())]
+        );
+        assert_eq!(
+            kinds("b'aGk='"),
+            vec![TokenKind::Binary("aGk=".to_string())]
+        );
+        assert_eq!(kinds("h'00ff'"), vec![TokenKind::Hex("00ff".to_string())]);
     }
 }
