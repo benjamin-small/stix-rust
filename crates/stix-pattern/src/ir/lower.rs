@@ -11,11 +11,8 @@ use crate::ir::{
 
 /// Lower a parsed pattern into its three-address representation.
 ///
-/// This is total: every well-formed [`Pattern`] lowers, and the result satisfies
-/// [`Program::validate`](crate::ir::Program::validate) as long as the pattern
-/// nests no deeper than [`MAX_DEPTH`](crate::ir::MAX_DEPTH) levels — which is far
-/// beyond anything a hand-written pattern reaches, but a generated one chaining
-/// hundreds of `AND`s can exceed.
+/// This is total: every well-formed [`Pattern`] lowers, and the result always
+/// satisfies [`Program::validate`](crate::ir::Program::validate).
 pub fn lower(pattern: &Pattern) -> Program {
     let mut l = Lowerer {
         next_instr: 0,

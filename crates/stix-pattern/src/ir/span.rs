@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use crate::error::Span;
-use crate::ir::{Block, BlockId, InstrId, Op, Program, MAX_DEPTH};
+use crate::ir::{Block, BlockId, InstrId, Op, Program};
 
 impl Program {
     /// The source extent of an instruction: its own span when it has one,
@@ -19,9 +19,12 @@ impl Program {
     ///
     /// `Observe` normally answers from its own span, which is the extent of the
     /// whole `[...]`; only when that is missing does this descend into the
-    /// comparison block it names. Descent stops at [`MAX_DEPTH`] levels, matching
-    /// [`Program::validate`], so this is safe to call on a program that has not
-    /// been validated.
+    /// comparison block it names.
+    ///
+    /// This is safe to call on a program that has not been validated. Descent is
+    /// iterative, so depth costs heap rather than stack, and it visits each
+    /// instruction at most once, so it terminates on cyclic or shared input and
+    /// does work linear in the size of the program.
     ///
     /// # Example
     ///
@@ -40,9 +43,9 @@ impl Program {
         // A validated program is acyclic, but this is meant to be safe on one
         // that is not, so never visit the same instruction twice.
         let mut visited: HashSet<(BlockId, InstrId)> = HashSet::new();
-        let mut stack: Vec<(BlockId, InstrId, u32)> = vec![(block, instr, 0)];
+        let mut stack: Vec<(BlockId, InstrId)> = vec![(block, instr)];
 
-        while let Some((block_id, instr_id, depth)) = stack.pop() {
+        while let Some((block_id, instr_id)) = stack.pop() {
             if !visited.insert((block_id, instr_id)) {
                 continue;
             }
@@ -56,25 +59,21 @@ impl Program {
                 extent = Some(union(extent, span));
                 continue;
             }
-            if depth >= MAX_DEPTH {
-                continue;
-            }
-            let next = depth + 1;
             match &i.op {
                 Op::Load { .. } => {}
-                Op::Compare { lhs, .. } => stack.push((block_id, *lhs, next)),
+                Op::Compare { lhs, .. } => stack.push((block_id, *lhs)),
                 Op::And { lhs, rhs } | Op::Or { lhs, rhs } | Op::FollowedBy { lhs, rhs } => {
-                    stack.push((block_id, *lhs, next));
-                    stack.push((block_id, *rhs, next));
+                    stack.push((block_id, *lhs));
+                    stack.push((block_id, *rhs));
                 }
                 Op::Within { input, .. }
                 | Op::Repeats { input, .. }
-                | Op::StartStop { input, .. } => stack.push((block_id, *input, next)),
-                Op::Yield { value } | Op::Ret { value } => stack.push((block_id, *value, next)),
+                | Op::StartStop { input, .. } => stack.push((block_id, *input)),
+                Op::Yield { value } | Op::Ret { value } => stack.push((block_id, *value)),
                 Op::Observe { block: target } => {
                     if let Some(cb) = self.block(*target) {
                         if let Some(Op::Yield { value }) = cb.terminator().map(|t| &t.op) {
-                            stack.push((*target, *value, next));
+                            stack.push((*target, *value));
                         }
                     }
                 }
@@ -187,21 +186,20 @@ mod tests {
         assert_eq!(program.span_of(program.main.id, InstrId(999)), None);
     }
 
-    #[test]
-    fn a_deep_chain_terminates_rather_than_overflowing() {
-        use crate::ir::MAX_DEPTH;
-
-        // A chain far deeper than MAX_DEPTH, with no spans anywhere: descent must
-        // stop at the bound and return `None` rather than recursing.
+    /// `[file:size > 1]` with `levels` `WITHIN` qualifiers chained onto it, every
+    /// span stripped except, optionally, the innermost compare's.
+    fn deep_chain(levels: u32, keep_compare_span: bool) -> (crate::ir::Program, InstrId) {
         let mut program = lower(&parse("[file:size > 1]").unwrap());
         for instr in &mut program.blocks[0].instructions {
-            instr.span = None;
+            if !(keep_compare_span && matches!(instr.op, Op::Compare { .. })) {
+                instr.span = None;
+            }
         }
         for instr in &mut program.main.instructions {
             instr.span = None;
         }
         let mut acc = program.main.instructions[0].id;
-        for next in 100..100 + MAX_DEPTH * 4 {
+        for next in 100..100 + levels {
             let id = InstrId(next);
             program.main.instructions.push(crate::ir::Instruction {
                 id,
@@ -213,6 +211,57 @@ mod tests {
             });
             acc = id;
         }
-        assert_eq!(program.span_of(program.main.id, acc), None);
+        (program, acc)
+    }
+
+    /// Run `f` on a thread with a deliberately small stack.
+    fn on_small_stack(f: impl FnOnce() + Send + 'static) {
+        std::thread::Builder::new()
+            .stack_size(256 * 1024)
+            .spawn(f)
+            .expect("spawn test thread")
+            .join()
+            .expect("test thread panicked");
+    }
+
+    #[test]
+    fn a_deep_chain_terminates_rather_than_overflowing() {
+        // No spans anywhere: descent walks the whole chain iteratively and finds
+        // nothing.
+        on_small_stack(|| {
+            let (program, top) = deep_chain(10_000, false);
+            assert_eq!(program.span_of(program.main.id, top), None);
+        });
+    }
+
+    #[test]
+    fn a_deep_chain_reaches_a_span_at_the_bottom() {
+        // The only span is 10,000 levels down; with no depth bound it is found.
+        on_small_stack(|| {
+            let (program, top) = deep_chain(10_000, true);
+            let compare = program.blocks[0]
+                .instructions
+                .iter()
+                .find(|i| matches!(i.op, Op::Compare { .. }))
+                .expect("a compare");
+            assert!(compare.span.is_some());
+            assert_eq!(program.span_of(program.main.id, top), compare.span);
+        });
+    }
+
+    #[test]
+    fn a_cyclic_program_terminates() {
+        // `span_of` may run on an unvalidated program; an `and` naming itself
+        // must not loop forever.
+        let mut program = lower(&parse("[file:size > 1] AND [file:size > 2]").unwrap());
+        let and = program
+            .main
+            .instructions
+            .iter_mut()
+            .find(|i| matches!(i.op, Op::And { .. }))
+            .expect("an and");
+        let id = and.id;
+        and.op = Op::And { lhs: id, rhs: id };
+        assert_eq!(program.span_of(program.main.id, id), None);
     }
 }

@@ -1,5 +1,7 @@
 //! Rendering: [`Program`] back to canonical STIX pattern text.
 
+use std::collections::HashSet;
+
 use crate::ast::{ComparisonOperator, Literal, ObjectPath, PathStep};
 use crate::ir::{Block, InstrId, Instruction, Op, Operand, Program};
 
@@ -32,6 +34,11 @@ use crate::ir::{Block, InstrId, Instruction, Op, Operand, Program};
 /// subexpression once per use, since pattern text has no way to name a shared
 /// value. [`Program::validate`](crate::ir::Program::validate) rejects those, so
 /// check any program that did not come from `lower` before rendering it.
+///
+/// Rendering walks the program with an explicit work stack rather than by
+/// recursion, so nesting depth is limited only by memory, never by the call
+/// stack. It also terminates on a cyclic program, which `validate` rejects, by
+/// skipping any operand that names one of its own ancestors.
 pub fn render(program: &Program) -> String {
     let mut out = String::new();
     // Not a well-formed program if there is no terminator, or the terminator
@@ -41,7 +48,7 @@ pub fn render(program: &Program) -> String {
         ..
     }) = program.main.terminator()
     {
-        render_observation(program, &program.main, *value, 1, &mut out);
+        Renderer::new(program).run(*value, &mut out);
     }
     out
 }
@@ -66,158 +73,254 @@ fn cmp_prec(op: &Op) -> u8 {
     }
 }
 
-/// Write the observation-tier expression rooted at `value`.
+/// The two expression tiers, which the renderer walks with separate rules.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum Tier {
+    Observation,
+    Comparison,
+}
+
+/// One pending step of rendering.
 ///
-/// Mirrors the parser's observation-expression cascade —
-/// `parse_observation_expression` (`FOLLOWEDBY`) → `parse_observation_or` →
-/// `parse_observation_and` → `parse_observation_qualified` →
-/// `parse_observation_primary` — with [`obs_prec`] standing in for the cascade's
-/// levels. `min_prec` is the tightest precedence the surrounding context accepts;
-/// a looser operator is parenthesized. The right operand is rendered one level
-/// tighter than the left, which is what makes these operators left-associative on
-/// the way out, matching the parser's loops.
-///
-/// A change to the parser's precedence needs a matching change here, or rendering
-/// stops round-tripping.
-fn render_observation(
-    program: &Program,
-    block: &Block,
-    value: InstrId,
-    min_prec: u8,
-    out: &mut String,
-) {
-    let Some(instr) = block.instruction(value) else {
-        return;
-    };
-    let prec = obs_prec(&instr.op);
-    let parens = prec < min_prec;
-    if parens {
-        out.push('(');
+/// The renderer is a loop over a stack of these rather than a recursive descent,
+/// so a deeply nested program costs heap rather than stack. Because the stack is
+/// last-in first-out, an instruction's pieces are pushed in the *reverse* of the
+/// order they are written.
+enum Work<'p> {
+    /// Write the observation-tier value `value` of `main`, parenthesized when its
+    /// operator binds more loosely than `min_prec`.
+    Observation { value: InstrId, min_prec: u8 },
+    /// Write the comparison-tier value `value` of `block`, parenthesized when its
+    /// operator binds more loosely than `min_prec`.
+    Comparison {
+        block: &'p Block,
+        value: InstrId,
+        min_prec: u8,
+    },
+    /// Write fixed text.
+    Text(&'static str),
+    /// Write computed text.
+    Owned(String),
+    /// Mark an instruction as finished, i.e. no longer on the current path.
+    Leave(Tier, InstrId),
+}
+
+/// The state of one [`render`] call.
+struct Renderer<'p> {
+    program: &'p Program,
+    stack: Vec<Work<'p>>,
+    /// The instructions currently being written: each one's ancestors, plus
+    /// itself. An operand already on the path names one of its own ancestors,
+    /// which only a cyclic (and so invalid) program can do; it is skipped so that
+    /// rendering terminates. An acyclic program never hits this, so its output is
+    /// unaffected.
+    ///
+    /// Keyed by tier rather than block: the observation tier lives only in
+    /// `main`, and the comparison tier never leaves the one block being written.
+    on_path: HashSet<(Tier, InstrId)>,
+}
+
+impl<'p> Renderer<'p> {
+    fn new(program: &'p Program) -> Self {
+        Renderer {
+            program,
+            stack: Vec::new(),
+            on_path: HashSet::new(),
+        }
     }
-    match &instr.op {
-        Op::Observe { block: target } => {
-            out.push('[');
-            if let Some(cb) = program.block(*target) {
-                if let Some(Op::Yield { value }) = cb.terminator().map(|t| &t.op) {
-                    render_comparison(cb, *value, 1, out);
+
+    /// Write the observation-tier expression rooted at `root`.
+    fn run(mut self, root: InstrId, out: &mut String) {
+        self.stack.push(Work::Observation {
+            value: root,
+            min_prec: 1,
+        });
+        while let Some(work) = self.stack.pop() {
+            match work {
+                Work::Observation { value, min_prec } => self.observation(value, min_prec, out),
+                Work::Comparison {
+                    block,
+                    value,
+                    min_prec,
+                } => self.comparison(block, value, min_prec, out),
+                Work::Text(text) => out.push_str(text),
+                Work::Owned(text) => out.push_str(&text),
+                Work::Leave(tier, value) => {
+                    self.on_path.remove(&(tier, value));
                 }
             }
-            out.push(']');
         }
-        Op::FollowedBy { lhs, rhs } => {
-            render_observation(program, block, *lhs, 1, out);
-            out.push_str(" FOLLOWEDBY ");
-            render_observation(program, block, *rhs, 2, out);
-        }
-        Op::Or { lhs, rhs } => {
-            render_observation(program, block, *lhs, 2, out);
-            out.push_str(" OR ");
-            render_observation(program, block, *rhs, 3, out);
-        }
-        Op::And { lhs, rhs } => {
-            render_observation(program, block, *lhs, 3, out);
-            out.push_str(" AND ");
-            render_observation(program, block, *rhs, 4, out);
-        }
-        Op::Within { input, seconds } => {
-            render_observation(program, block, *input, 4, out);
-            out.push_str(" WITHIN ");
-            out.push_str(&render_seconds(*seconds));
-            out.push_str(" SECONDS");
-        }
-        Op::Repeats { input, count } => {
-            render_observation(program, block, *input, 4, out);
-            out.push_str(&format!(" REPEATS {count} TIMES"));
-        }
-        Op::StartStop { input, start, stop } => {
-            render_observation(program, block, *input, 4, out);
-            out.push_str(&format!(
-                " START t'{}' STOP t'{}'",
-                escape_string(start),
-                escape_string(stop)
-            ));
-        }
-        // Not valid at this tier; skip rather than panic.
-        _ => {}
     }
-    if parens {
-        out.push(')');
+
+    /// Start writing `value` at `tier`: open its parentheses if it needs them and
+    /// schedule the matching close. Returns `false`, writing nothing, when `value`
+    /// is already on the current path.
+    fn enter(
+        &mut self,
+        tier: Tier,
+        value: InstrId,
+        prec: u8,
+        min_prec: u8,
+        out: &mut String,
+    ) -> bool {
+        if !self.on_path.insert((tier, value)) {
+            return false;
+        }
+        self.stack.push(Work::Leave(tier, value));
+        if prec < min_prec {
+            out.push('(');
+            self.stack.push(Work::Text(")"));
+        }
+        true
+    }
+
+    /// Schedule `lhs`, then `sep`, then `rhs`.
+    fn binary(&mut self, lhs: Work<'p>, sep: &'static str, rhs: Work<'p>) {
+        self.stack.push(rhs);
+        self.stack.push(Work::Text(sep));
+        self.stack.push(lhs);
+    }
+
+    /// Write the observation-tier expression rooted at `value`.
+    ///
+    /// Mirrors the parser's observation-expression cascade —
+    /// `parse_observation_expression` (`FOLLOWEDBY`) → `parse_observation_or` →
+    /// `parse_observation_and` → `parse_observation_qualified` →
+    /// `parse_observation_primary` — with [`obs_prec`] standing in for the
+    /// cascade's levels. `min_prec` is the tightest precedence the surrounding
+    /// context accepts; a looser operator is parenthesized. The right operand is
+    /// rendered one level tighter than the left, which is what makes these
+    /// operators left-associative on the way out, matching the parser's loops.
+    ///
+    /// A change to the parser's precedence needs a matching change here, or
+    /// rendering stops round-tripping.
+    fn observation(&mut self, value: InstrId, min_prec: u8, out: &mut String) {
+        let program = self.program;
+        let Some(instr) = program.main.instruction(value) else {
+            return;
+        };
+        if !self.enter(Tier::Observation, value, obs_prec(&instr.op), min_prec, out) {
+            return;
+        }
+        let obs = |value: InstrId, min_prec: u8| Work::Observation { value, min_prec };
+        match &instr.op {
+            Op::Observe { block: target } => {
+                out.push('[');
+                self.stack.push(Work::Text("]"));
+                if let Some(cb) = program.block(*target) {
+                    if let Some(Op::Yield { value }) = cb.terminator().map(|t| &t.op) {
+                        self.stack.push(Work::Comparison {
+                            block: cb,
+                            value: *value,
+                            min_prec: 1,
+                        });
+                    }
+                }
+            }
+            Op::FollowedBy { lhs, rhs } => self.binary(obs(*lhs, 1), " FOLLOWEDBY ", obs(*rhs, 2)),
+            Op::Or { lhs, rhs } => self.binary(obs(*lhs, 2), " OR ", obs(*rhs, 3)),
+            Op::And { lhs, rhs } => self.binary(obs(*lhs, 3), " AND ", obs(*rhs, 4)),
+            Op::Within { input, seconds } => {
+                self.stack.push(Work::Owned(format!(
+                    " WITHIN {} SECONDS",
+                    render_seconds(*seconds)
+                )));
+                self.stack.push(obs(*input, 4));
+            }
+            Op::Repeats { input, count } => {
+                self.stack
+                    .push(Work::Owned(format!(" REPEATS {count} TIMES")));
+                self.stack.push(obs(*input, 4));
+            }
+            Op::StartStop { input, start, stop } => {
+                self.stack.push(Work::Owned(format!(
+                    " START t'{}' STOP t'{}'",
+                    escape_string(start),
+                    escape_string(stop)
+                )));
+                self.stack.push(obs(*input, 4));
+            }
+            // Not valid at this tier; skip rather than panic.
+            _ => {}
+        }
+    }
+
+    /// Write the comparison-tier expression rooted at `value`, i.e. the inside of
+    /// one `[...]`.
+    ///
+    /// Mirrors the parser's comparison-expression cascade —
+    /// `parse_comparison_expression` (`OR`) → `parse_comparison_and` →
+    /// `parse_prop_test` — with [`cmp_prec`] standing in for the cascade's
+    /// levels. `min_prec` and the one-level-tighter right operand work exactly as
+    /// in [`Renderer::observation`].
+    ///
+    /// A change to the parser's precedence needs a matching change here, or
+    /// rendering stops round-tripping.
+    fn comparison(&mut self, block: &'p Block, value: InstrId, min_prec: u8, out: &mut String) {
+        let Some(instr) = block.instruction(value) else {
+            return;
+        };
+        if !self.enter(Tier::Comparison, value, cmp_prec(&instr.op), min_prec, out) {
+            return;
+        }
+        let cmp = |value: InstrId, min_prec: u8| Work::Comparison {
+            block,
+            value,
+            min_prec,
+        };
+        match &instr.op {
+            Op::Or { lhs, rhs } => self.binary(cmp(*lhs, 1), " OR ", cmp(*rhs, 2)),
+            Op::And { lhs, rhs } => self.binary(cmp(*lhs, 2), " AND ", cmp(*rhs, 3)),
+            Op::Compare {
+                operator,
+                negated,
+                lhs,
+                rhs,
+            } => render_compare(block, *operator, *negated, *lhs, rhs, out),
+            // A bare Load or a non-comparison op: nothing renderable.
+            _ => {}
+        }
     }
 }
 
-/// Write the comparison-tier expression rooted at `value`, i.e. the inside of one
-/// `[...]`.
-///
-/// Mirrors the parser's comparison-expression cascade —
-/// `parse_comparison_expression` (`OR`) → `parse_comparison_and` →
-/// `parse_prop_test` — with [`cmp_prec`] standing in for the cascade's levels.
-/// `min_prec` and the one-level-tighter right operand work exactly as in
-/// [`render_observation`].
-///
-/// A change to the parser's precedence needs a matching change here, or rendering
-/// stops round-tripping.
-fn render_comparison(block: &Block, value: InstrId, min_prec: u8, out: &mut String) {
-    let Some(instr) = block.instruction(value) else {
-        return;
+/// Write one comparison, a leaf of the comparison tier.
+fn render_compare(
+    block: &Block,
+    operator: ComparisonOperator,
+    negated: bool,
+    lhs: InstrId,
+    rhs: &Operand,
+    out: &mut String,
+) {
+    let path = match block.instruction(lhs).map(|i| &i.op) {
+        Some(Op::Load { path }) => Some(path),
+        _ => None,
     };
-    let prec = cmp_prec(&instr.op);
-    let parens = prec < min_prec;
-    if parens {
-        out.push('(');
+    if operator == ComparisonOperator::Exists {
+        out.push_str("EXISTS ");
+        if let Some(p) = path {
+            out.push_str(&render_path(p));
+        }
+        return;
     }
-    match &instr.op {
-        Op::Or { lhs, rhs } => {
-            render_comparison(block, *lhs, 1, out);
-            out.push_str(" OR ");
-            render_comparison(block, *rhs, 2, out);
-        }
-        Op::And { lhs, rhs } => {
-            render_comparison(block, *lhs, 2, out);
-            out.push_str(" AND ");
-            render_comparison(block, *rhs, 3, out);
-        }
-        Op::Compare {
-            operator,
-            negated,
-            lhs,
-            rhs,
-        } => {
-            let path = match block.instruction(*lhs).map(|i| &i.op) {
-                Some(Op::Load { path }) => Some(path),
-                _ => None,
-            };
-            if *operator == ComparisonOperator::Exists {
-                out.push_str("EXISTS ");
-                if let Some(p) = path {
-                    out.push_str(&render_path(p));
-                }
-            } else {
-                if let Some(p) = path {
-                    out.push_str(&render_path(p));
-                }
-                out.push(' ');
-                if *negated {
-                    out.push_str("NOT ");
-                }
-                out.push_str(operator_text(*operator));
-                out.push(' ');
-                match rhs {
-                    Operand::Literal(lit) => out.push_str(&render_literal(lit)),
-                    Operand::Set(items) => {
-                        let inner: Vec<String> = items.iter().map(render_literal).collect();
-                        out.push('(');
-                        out.push_str(&inner.join(", "));
-                        out.push(')');
-                    }
-                    Operand::Absent => {}
-                }
-            }
-        }
-        // A bare Load or a non-comparison op: nothing renderable.
-        _ => {}
+    if let Some(p) = path {
+        out.push_str(&render_path(p));
     }
-    if parens {
-        out.push(')');
+    out.push(' ');
+    if negated {
+        out.push_str("NOT ");
+    }
+    out.push_str(operator_text(operator));
+    out.push(' ');
+    match rhs {
+        Operand::Literal(lit) => out.push_str(&render_literal(lit)),
+        Operand::Set(items) => {
+            let inner: Vec<String> = items.iter().map(render_literal).collect();
+            out.push('(');
+            out.push_str(&inner.join(", "));
+            out.push(')');
+        }
+        Operand::Absent => {}
     }
 }
 
@@ -573,6 +676,247 @@ mod tests {
     fn diamond_not_equal_renders_as_bang_equal() {
         assert_eq!(round("[file:size<>1]"), "[file:size != 1]");
         assert_round_trips("[file:size <> 1]");
+    }
+
+    /// Run `f` on a thread with a deliberately small stack, so a test proves that
+    /// the code under test does not recurse in proportion to program depth.
+    fn on_small_stack(f: impl FnOnce() + Send + 'static) {
+        std::thread::Builder::new()
+            .stack_size(256 * 1024)
+            .spawn(f)
+            .expect("spawn test thread")
+            .join()
+            .expect("test thread panicked");
+    }
+
+    /// Nesting far beyond what a recursive renderer survives on a small stack.
+    const DEEP: u32 = 10_000;
+
+    /// `[file:size > 1024]` with `levels` `WITHIN` qualifiers chained onto it.
+    fn qualifier_chain(levels: u32) -> crate::ir::Program {
+        use crate::ir::{InstrId, Instruction, Op};
+
+        let mut p = lower(&parse("[file:size > 1024]").unwrap());
+        let observe = p.main.instructions[0].clone();
+        let mut acc = observe.id;
+        let mut instrs = vec![observe];
+        let mut next = 1000u32;
+        for _ in 0..levels {
+            let id = InstrId(next);
+            next += 1;
+            instrs.push(Instruction {
+                id,
+                op: Op::Within {
+                    input: acc,
+                    seconds: 1.0,
+                },
+                span: None,
+            });
+            acc = id;
+        }
+        instrs.push(Instruction {
+            id: InstrId(next),
+            op: Op::Ret { value: acc },
+            span: None,
+        });
+        p.main.instructions = instrs;
+        p
+    }
+
+    /// A single observation whose comparison block chains `terms` copies of
+    /// `file:size > 1024` with `AND`, nested to the left or to the right.
+    fn comparison_and_chain(terms: u32, right_nested: bool) -> crate::ir::Program {
+        use crate::ast::{ComparisonOperator, Literal};
+        use crate::ir::{InstrId, Instruction, Op, Operand};
+
+        let mut p = lower(&parse("[file:size > 1024]").unwrap());
+        let path = match &p.blocks[0].instructions[0].op {
+            Op::Load { path } => path.clone(),
+            other => panic!("expected a load, got {other:?}"),
+        };
+        let mut next = 1000u32;
+        let mut fresh = || {
+            next += 1;
+            InstrId(next)
+        };
+        let mut instrs = Vec::new();
+        let compare = |instrs: &mut Vec<Instruction>, fresh: &mut dyn FnMut() -> InstrId| {
+            let load = fresh();
+            instrs.push(Instruction {
+                id: load,
+                op: Op::Load { path: path.clone() },
+                span: None,
+            });
+            let cmp = fresh();
+            instrs.push(Instruction {
+                id: cmp,
+                op: Op::Compare {
+                    operator: ComparisonOperator::GreaterThan,
+                    negated: false,
+                    lhs: load,
+                    rhs: Operand::Literal(Literal::Integer(1024)),
+                },
+                span: None,
+            });
+            cmp
+        };
+        let mut acc = compare(&mut instrs, &mut fresh);
+        for _ in 1..terms {
+            let term = compare(&mut instrs, &mut fresh);
+            let id = fresh();
+            let (lhs, rhs) = if right_nested {
+                (term, acc)
+            } else {
+                (acc, term)
+            };
+            instrs.push(Instruction {
+                id,
+                op: Op::And { lhs, rhs },
+                span: None,
+            });
+            acc = id;
+        }
+        instrs.push(Instruction {
+            id: fresh(),
+            op: Op::Yield { value: acc },
+            span: None,
+        });
+        p.blocks[0].instructions = instrs;
+        p
+    }
+
+    #[test]
+    fn a_deep_qualifier_chain_validates_and_renders_on_a_small_stack() {
+        on_small_stack(|| {
+            let p = qualifier_chain(DEEP);
+            assert_eq!(p.validate(), Ok(()));
+            let expected = format!(
+                "[file:size > 1024]{}",
+                " WITHIN 1 SECONDS".repeat(DEEP as usize)
+            );
+            assert_eq!(render(&p), expected);
+        });
+    }
+
+    #[test]
+    fn a_deep_left_nested_comparison_chain_renders_without_parens() {
+        on_small_stack(|| {
+            let p = comparison_and_chain(DEEP, false);
+            assert_eq!(p.validate(), Ok(()));
+            let expected = format!(
+                "[{}]",
+                vec!["file:size > 1024"; DEEP as usize].join(" AND ")
+            );
+            assert_eq!(render(&p), expected);
+        });
+    }
+
+    #[test]
+    fn a_deep_right_nested_comparison_chain_parenthesizes_every_level() {
+        on_small_stack(|| {
+            let p = comparison_and_chain(DEEP, true);
+            assert_eq!(p.validate(), Ok(()));
+            let x = "file:size > 1024";
+            let wraps = DEEP as usize - 2;
+            let expected = format!(
+                "[{}{x} AND {x}{}]",
+                format!("{x} AND (").repeat(wraps),
+                ")".repeat(wraps)
+            );
+            assert_eq!(render(&p), expected);
+        });
+    }
+
+    #[test]
+    fn a_deep_right_nested_observation_chain_parenthesizes_every_level() {
+        use crate::ir::{BlockKind, Instruction, Op};
+
+        on_small_stack(|| {
+            // Build `[a] OR ([a] OR ([a] OR ...))` by lowering one observation per
+            // term and stitching their blocks together under a right-nested OR.
+            let template = lower(&parse("[file:size > 1024]").unwrap());
+            let mut p = template.clone();
+            p.blocks.clear();
+            p.main.instructions.clear();
+            let mut next_instr = 100_000u32;
+            let mut acc = None;
+            for term in 0..DEEP {
+                let mut b = template.blocks[0].clone();
+                b.id = crate::ir::BlockId(1000 + term);
+                for instr in &mut b.instructions {
+                    let old = instr.id;
+                    instr.id = crate::ir::InstrId(next_instr + old.0);
+                    match &mut instr.op {
+                        Op::Compare { lhs, .. } => lhs.0 += next_instr,
+                        Op::Yield { value } => value.0 += next_instr,
+                        _ => {}
+                    }
+                }
+                next_instr += 10;
+                assert_eq!(b.kind, BlockKind::Comparison);
+                let observe = crate::ir::InstrId(next_instr);
+                next_instr += 10;
+                p.main.instructions.push(Instruction {
+                    id: observe,
+                    op: Op::Observe { block: b.id },
+                    span: None,
+                });
+                p.blocks.push(b);
+                acc = Some(match acc {
+                    None => observe,
+                    Some(prev) => {
+                        let or = crate::ir::InstrId(next_instr);
+                        next_instr += 10;
+                        p.main.instructions.push(Instruction {
+                            id: or,
+                            op: Op::Or {
+                                lhs: observe,
+                                rhs: prev,
+                            },
+                            span: None,
+                        });
+                        or
+                    }
+                });
+            }
+            p.main.instructions.push(Instruction {
+                id: crate::ir::InstrId(next_instr),
+                op: Op::Ret {
+                    value: acc.unwrap(),
+                },
+                span: None,
+            });
+            assert_eq!(p.validate(), Ok(()));
+            let x = "[file:size > 1024]";
+            let wraps = DEEP as usize - 2;
+            let expected = format!(
+                "{}{x} OR {x}{}",
+                format!("{x} OR (").repeat(wraps),
+                ")".repeat(wraps)
+            );
+            assert_eq!(render(&p), expected);
+        });
+    }
+
+    #[test]
+    fn a_cyclic_unvalidated_program_renders_without_hanging() {
+        use crate::ir::Op;
+
+        // An `and` that names itself: `validate` rejects this as a forward
+        // reference, but `render` must still terminate on it.
+        on_small_stack(|| {
+            let mut p = lower(&parse("[file:size > 1] AND [file:size > 2]").unwrap());
+            let and = p
+                .main
+                .instructions
+                .iter_mut()
+                .find(|i| matches!(i.op, Op::And { .. }))
+                .expect("an and");
+            let id = and.id;
+            and.op = Op::And { lhs: id, rhs: id };
+            assert!(p.validate().is_err());
+            assert_eq!(render(&p), " AND ");
+        });
     }
 
     #[test]

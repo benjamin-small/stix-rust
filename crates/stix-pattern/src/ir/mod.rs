@@ -24,8 +24,9 @@
 //! Deserializing a [`Program`] does **not** check its invariants. Call
 //! [`Program::validate`] before using one that came from outside this process:
 //! it is what rejects the shapes that would make [`render`] produce text that
-//! does not parse, grow exponentially, or overflow the stack. See [`MAX_DEPTH`]
-//! for the nesting limit it enforces.
+//! does not parse or grow exponentially. Nesting depth is not limited:
+//! [`render`], [`Program::validate`] and [`Program::span_of`] are iterative, so
+//! a deeply nested program cannot make any of them overflow the stack.
 //!
 //! Validation also bounds rendered size. Each value may have at most one
 //! consumer ([`IrError::MultipleUses`]) and each comparison block at most one
@@ -44,4 +45,4 @@ pub use instr::{
 };
 pub use lower::lower;
 pub use render::render;
-pub use validate::{IrError, MAX_DEPTH};
+pub use validate::IrError;
