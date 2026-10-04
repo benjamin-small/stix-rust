@@ -101,7 +101,7 @@ fn name_of(id: InstrId, names: &HashMap<InstrId, String>) -> String {
 /// The mnemonic and operand text for one op.
 fn describe(op: &Op, names: &HashMap<InstrId, String>) -> (String, String) {
     match op {
-        Op::Load { path } => ("load".to_string(), render_path(path)),
+        Op::Load { path } => ("load".to_string(), escape_controls(&render_path(path))),
         Op::Compare {
             operator,
             negated,
@@ -116,10 +116,17 @@ fn describe(op: &Op, names: &HashMap<InstrId, String>) -> (String, String) {
             let operands = match rhs {
                 Operand::Absent => name_of(*lhs, names),
                 Operand::Literal(lit) => {
-                    format!("{}, {}", name_of(*lhs, names), render_literal(lit))
+                    format!(
+                        "{}, {}",
+                        name_of(*lhs, names),
+                        escape_controls(&render_literal(lit))
+                    )
                 }
                 Operand::Set(items) => {
-                    let inner: Vec<String> = items.iter().map(render_literal).collect();
+                    let inner: Vec<String> = items
+                        .iter()
+                        .map(|l| escape_controls(&render_literal(l)))
+                        .collect();
                     format!("{}, ({})", name_of(*lhs, names), inner.join(", "))
                 }
             };
@@ -152,12 +159,35 @@ fn describe(op: &Op, names: &HashMap<InstrId, String>) -> (String, String) {
             format!(
                 "{}, '{}', '{}'",
                 name_of(*input, names),
-                escape_string(start),
-                escape_string(stop)
+                escape_controls(&escape_string(start)),
+                escape_controls(&escape_string(stop))
             ),
         ),
         Op::Ret { value } => ("ret".to_string(), name_of(*value, names)),
     }
+}
+
+/// Escape control characters so one instruction always occupies one line.
+///
+/// Applied to rendered text only in the listing, which is a display format and
+/// is never reparsed. Canonical text from [`render`](crate::ir::render) keeps the
+/// raw characters, since the STIX grammar defines only the `\'` and `\\`
+/// escapes. Control characters occur only inside quoted content, so applying this
+/// to a whole rendered fragment is safe.
+fn escape_controls(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c.is_control() => {
+                let _ = write!(out, "\\u{{{:x}}}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 fn mnemonic_for(op: ComparisonOperator) -> &'static str {
@@ -326,5 +356,60 @@ block main (observation):
             listing.contains(r"startstop   o0, '2020\'x', '2021'"),
             "{listing}"
         );
+    }
+
+    #[test]
+    fn a_newline_in_a_literal_stays_on_one_listing_line() {
+        let src = "[file:name = 'a\n  b']";
+        let ast = parse(src).unwrap();
+        let prog = lower(&ast);
+        let listing = prog.to_listing();
+        assert!(
+            listing.contains(r"t1 = eq          t0, 'a\n  b'"),
+            "{listing}"
+        );
+        // Every non-blank listing line is a header or an indented instruction.
+        for l in listing.lines().filter(|l| !l.is_empty()) {
+            assert!(l.starts_with("block ") || l.starts_with("  "), "{listing}");
+        }
+        assert_eq!(listing.lines().count(), 8, "{listing}");
+        // Canonical text still carries the raw character and reparses.
+        let text = crate::ir::render(&prog);
+        assert!(text.contains("'a\n  b'"), "{text:?}");
+        assert_eq!(parse(&text).unwrap(), ast);
+    }
+
+    #[test]
+    fn tabs_and_other_controls_are_escaped_in_the_listing() {
+        use crate::ast::Literal;
+        use crate::ir::{Op, Operand};
+        // Built by hand: the lexer reads non-ASCII bytes one at a time, so a
+        // U+0085 cannot be written through pattern text.
+        let mut prog = lower(&parse("[file:name IN ('x')]").unwrap());
+        for i in &mut prog.blocks[0].instructions {
+            if let Op::Compare { rhs, .. } = &mut i.op {
+                *rhs = Operand::Set(
+                    ["a\tb", "c\u{85}d", "e\u{7f}f", "g\rh", "i\u{1}j"]
+                        .map(|s| Literal::String(s.to_string()))
+                        .to_vec(),
+                );
+            }
+        }
+        let listing = prog.to_listing();
+        assert!(
+            listing.contains(r"('a\tb', 'c\u{85}d', 'e\u{7f}f', 'g\rh', 'i\u{1}j')"),
+            "{listing}"
+        );
+    }
+
+    #[test]
+    fn controls_are_escaped_in_start_stop_and_path_keys() {
+        let prog = lower(&parse("[file:name='a'] START t'2020\n01' STOP t'2021\t'").unwrap());
+        let listing = prog.to_listing();
+        assert!(listing.contains(r"'2020\n01', '2021\t'"), "{listing}");
+        let prog = lower(&parse("[file:'a\nb' = 1]").unwrap());
+        let listing = prog.to_listing();
+        assert!(listing.contains(r"load        file:'a\nb'"), "{listing}");
+        assert_eq!(listing.lines().count(), 8, "{listing}");
     }
 }
