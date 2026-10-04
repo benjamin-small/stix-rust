@@ -21,8 +21,10 @@ visible. See [RELEASING.md](RELEASING.md).
   updating
   ([#52](https://github.com/benjamin-small/stix-rust/issues/52)).
 - In the Python binding, a failure converting JSON to a Python object now raises
-  `ModelError` rather than `ParseError`.
-
+  `ModelError` rather than `ParseError`, for both `Pattern.ast` and the object
+  getters. Code that catches `ParseError` around those may need to catch
+  `ModelError` too
+  ([#50](https://github.com/benjamin-small/stix-rust/issues/50)).
 - **BREAKING:** `ObservationExpression::Observation` is now a struct variant.
   Its serialized JSON changes from `{"Observation": {…}}` to
   `{"Observation": {"expression": {…}, "span": {…}}}`, where the old payload is
@@ -50,10 +52,11 @@ visible. See [RELEASING.md](RELEASING.md).
   at most once and each comparison block has at most one `Observe`, which keeps
   rendered output linear in the size of the program. `validate` also rejects
   `REPEATS` counts and path indices above `i64::MAX`, which the parser cannot
-  read back. `render`, `validate` and `span_of` run in linear time. `Program::to_listing` prints
-  a human-readable listing, escaping control characters so one instruction stays
-  on one line, and `Program::span_of` computes the source extent of an
-  instruction that carries no span of its own. There is no depth limit: `render`
+  read back. `render`, `validate` and `span_of` run in linear time.
+  `Program::to_listing` prints a human-readable listing, escaping control
+  characters so one instruction stays on one line, and `Program::span_of`
+  computes the source extent of an instruction that carries no span of its own.
+  There is no depth limit: `render`
   handles arbitrarily deep programs without overflowing the stack.
 - `stix_ffi::Pattern::ir_json`, `ir_listing` and `canonical`, exposing the IR as
   compact JSON, as the human-readable listing, and as canonical pattern text.
