@@ -185,14 +185,16 @@ impl<'p> Renderer<'p> {
 
     /// Write the observation-tier expression rooted at `value`.
     ///
-    /// Mirrors the parser's observation-expression cascade —
-    /// `parse_observation_expression` (`FOLLOWEDBY`) → `parse_observation_or` →
-    /// `parse_observation_and` → `parse_observation_qualified` →
-    /// `parse_observation_primary` — with [`obs_prec`] standing in for the
-    /// cascade's levels. `min_prec` is the tightest precedence the surrounding
+    /// Mirrors the parser's observation-level precedence — `FOLLOWEDBY`
+    /// loosest, then `OR`, then `AND`, then postfix qualifiers, then a
+    /// `[...]` or a parenthesized group — with [`obs_prec`] standing in for
+    /// those levels. `min_prec` is the tightest precedence the surrounding
     /// context accepts; a looser operator is parenthesized. The right operand is
     /// rendered one level tighter than the left, which is what makes these
-    /// operators left-associative on the way out, matching the parser's loops.
+    /// operators left-associative on the way out. That matches how the parser
+    /// builds chains: it reads `a OR b OR c` as one chain `(a OR b) OR c`, which
+    /// lowers to `Or(Or(a, b), c)`, while a parenthesized right operand
+    /// `a OR (b OR c)` keeps its own node.
     ///
     /// A change to the parser's precedence needs a matching change here, or
     /// rendering stops round-tripping.
@@ -250,11 +252,11 @@ impl<'p> Renderer<'p> {
     /// Write the comparison-tier expression rooted at `value`, i.e. the inside of
     /// one `[...]`.
     ///
-    /// Mirrors the parser's comparison-expression cascade —
-    /// `parse_comparison_expression` (`OR`) → `parse_comparison_and` →
-    /// `parse_prop_test` — with [`cmp_prec`] standing in for the cascade's
-    /// levels. `min_prec` and the one-level-tighter right operand work exactly as
-    /// in [`Renderer::observation`].
+    /// Mirrors the parser's comparison-level precedence — `OR` loosest, then
+    /// `AND`, then a property test or a parenthesized group — with
+    /// [`cmp_prec`] standing in for those levels. `min_prec` and the
+    /// one-level-tighter right operand work exactly as in
+    /// [`Renderer::observation`].
     ///
     /// A change to the parser's precedence needs a matching change here, or
     /// rendering stops round-tripping.

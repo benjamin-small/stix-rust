@@ -31,4 +31,4 @@ pub mod parser;
 
 pub use ast::*;
 pub use error::{ParseError, Span};
-pub use parser::parse;
+pub use parser::{parse, MAX_NESTING};

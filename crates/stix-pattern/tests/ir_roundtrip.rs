@@ -168,3 +168,61 @@ fn a_flat_300_term_and_chain_round_trips() {
     let reparsed = parse(&text).expect("rendered chain parses");
     assert_eq!(reparsed.without_spans(), ast.without_spans());
 }
+
+/// Chains are n-ary in the AST and left-associative binary in the IR. A
+/// left-nested group flattens into its chain and a right-nested one keeps its
+/// own node, which is exactly what rendering's parentheses preserve, so the
+/// round trip is exact either way.
+#[test]
+fn grouped_chains_round_trip() {
+    let cases = [
+        // (pattern, canonical rendering)
+        (
+            "([x:v=1] OR [x:v=2]) OR [x:v=3]",
+            "[x:v = 1] OR [x:v = 2] OR [x:v = 3]",
+        ),
+        (
+            "[x:v=1] OR ([x:v=2] OR [x:v=3])",
+            "[x:v = 1] OR ([x:v = 2] OR [x:v = 3])",
+        ),
+        (
+            "([x:v=1] OR [x:v=2]) AND [x:v=3] OR [x:v=4]",
+            "([x:v = 1] OR [x:v = 2]) AND [x:v = 3] OR [x:v = 4]",
+        ),
+        (
+            "[x:v=1] AND ([x:v=2] OR [x:v=3]) AND ([x:v=4] AND [x:v=5])",
+            "[x:v = 1] AND ([x:v = 2] OR [x:v = 3]) AND ([x:v = 4] AND [x:v = 5])",
+        ),
+        (
+            "[x:v=1 OR (x:v=2 OR x:v=3) AND x:v=4]",
+            "[x:v = 1 OR (x:v = 2 OR x:v = 3) AND x:v = 4]",
+        ),
+        (
+            "[((x:v=1 AND x:v=2) AND x:v=3) OR x:v=4 OR (x:v=5 OR x:v=6)]",
+            "[x:v = 1 AND x:v = 2 AND x:v = 3 OR x:v = 4 OR (x:v = 5 OR x:v = 6)]",
+        ),
+        (
+            "([x:v=1] FOLLOWEDBY [x:v=2]) FOLLOWEDBY [x:v=3]",
+            "[x:v = 1] FOLLOWEDBY [x:v = 2] FOLLOWEDBY [x:v = 3]",
+        ),
+        (
+            "[x:v=1] FOLLOWEDBY ([x:v=2] FOLLOWEDBY ([x:v=3] FOLLOWEDBY [x:v=4]))",
+            "[x:v = 1] FOLLOWEDBY ([x:v = 2] FOLLOWEDBY ([x:v = 3] FOLLOWEDBY [x:v = 4]))",
+        ),
+        (
+            "[x:v=1] FOLLOWEDBY ([x:v=2] FOLLOWEDBY [x:v=3]) FOLLOWEDBY [x:v=4]",
+            "[x:v = 1] FOLLOWEDBY ([x:v = 2] FOLLOWEDBY [x:v = 3]) FOLLOWEDBY [x:v = 4]",
+        ),
+        (
+            "([x:v=1] OR [x:v=2]) WITHIN 5 SECONDS OR [x:v=3]",
+            "([x:v = 1] OR [x:v = 2]) WITHIN 5 SECONDS OR [x:v = 3]",
+        ),
+    ];
+    for (src, canonical) in cases {
+        let ast = parse(src).expect(src);
+        let text = render(&lower(&ast));
+        assert_eq!(text, canonical, "{src}");
+        let reparsed = parse(&text).expect(&text);
+        assert_eq!(reparsed.without_spans(), ast.without_spans(), "{src}");
+    }
+}
