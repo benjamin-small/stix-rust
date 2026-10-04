@@ -88,4 +88,38 @@ describe("stix wasm binding", () => {
     ).toThrow(ValidationError);
     try { engine.parsePattern("[bad"); } catch (e) { expect(e).toBeInstanceOf(StixError); }
   });
+
+  describe("deeply nested patterns (issue #50)", () => {
+    const deep = (n: number) => {
+      let s = "[a:b = 1]";
+      for (let i = 0; i < n; i++) {
+        s = `[a:b = 1] FOLLOWEDBY [a:b = 1] OR [a:b = 1] AND (${s})`;
+      }
+      return s;
+    };
+
+    it("returns the AST at MAX_NESTING and it round-trips through JSON", () => {
+      const p = new Engine().parsePattern(deep(40));
+      const ast = p.ast;
+      expect(ast).toBeTruthy();
+      expect(JSON.parse(JSON.stringify(ast))).toEqual(ast);
+      expect(p.ir).toBeTruthy();
+    });
+
+    it("rejects limit + 1 with a ParseError", () => {
+      const engine = new Engine();
+      expect(() => engine.parsePattern(deep(41))).toThrow(ParseError);
+      expect(() => engine.parsePattern(deep(41))).toThrow(/nests too deeply/);
+    });
+
+    it("handles a 10,000-term flat OR chain", () => {
+      const text = Array.from({ length: 10000 }, () => "[a:b = 1]").join(" OR ");
+      const ast: any = new Engine().parsePattern(text).ast;
+      const find = (v: any): any =>
+        v && typeof v === "object"
+          ? "Or" in v ? v.Or : Object.values(v).map(find).find(Boolean)
+          : undefined;
+      expect(find(ast)).toHaveLength(10000);
+    });
+  });
 });

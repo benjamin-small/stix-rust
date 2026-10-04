@@ -18,6 +18,27 @@ fn err_js(e: stix_ffi::FfiError) -> JsValue {
 fn json_to_js(json: &str) -> Result<JsValue, JsValue> {
     let value: serde_json::Value =
         serde_json::from_str(json).map_err(|e| JsError::new(&format!("[model] {e}")))?;
+    value_to_js(&value)
+}
+
+/// Like `json_to_js` but without serde_json's 128-level recursion limit, for the
+/// AST and IR documents of a parsed pattern.
+///
+/// Disabling the limit is safe only because these documents come from
+/// `stix_pattern::parse`, which caps nesting at `MAX_NESTING` (40), so their JSON
+/// depth is at most 2 * MAX_NESTING plus a small constant. It does not hold for
+/// arbitrary JSON (for example bundle objects), which keep the default limit.
+fn pattern_json_to_js(json: &str) -> Result<JsValue, JsValue> {
+    use serde::Deserialize;
+    let mut de = serde_json::Deserializer::from_str(json);
+    de.disable_recursion_limit();
+    let value = serde_json::Value::deserialize(&mut de)
+        .and_then(|v| de.end().map(|_| v))
+        .map_err(|e| JsError::new(&format!("[model] {e}")))?;
+    value_to_js(&value)
+}
+
+fn value_to_js(value: &serde_json::Value) -> Result<JsValue, JsValue> {
     // Use the JSON-compatible serializer so JSON objects cross as plain JS objects
     // (property access, `JSON.stringify`) rather than as ES `Map` instances.
     let serializer = serde_wasm_bindgen::Serializer::json_compatible();
@@ -35,12 +56,12 @@ pub struct Pattern {
 impl Pattern {
     #[wasm_bindgen(getter)]
     pub fn ast(&self) -> Result<JsValue, JsValue> {
-        json_to_js(&self.inner.to_json())
+        pattern_json_to_js(&self.inner.to_json())
     }
 
     #[wasm_bindgen(getter)]
     pub fn ir(&self) -> Result<JsValue, JsValue> {
-        json_to_js(&self.inner.ir_json())
+        pattern_json_to_js(&self.inner.ir_json())
     }
 
     #[wasm_bindgen(getter, js_name = irListing)]
