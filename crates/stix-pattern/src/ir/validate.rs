@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::ast::{ComparisonOperator, Literal};
+use crate::ast::{ComparisonOperator, Literal, PathStep};
 use crate::ir::{Block, BlockId, BlockKind, InstrId, Op, Operand, Program, SCHEMA_VERSION};
 
 /// Whether a literal is renderable — i.e. not a non-finite float.
@@ -96,6 +96,27 @@ pub enum IrError {
     NonFiniteFloat {
         /// The offending instruction.
         instr: u32,
+    },
+    /// A `Repeats` count is larger than the pattern lexer can read back.
+    ///
+    /// The lexer reads integer literals as `i64`, so `REPEATS <n> TIMES` parses
+    /// only for `n <= i64::MAX`. A larger count would render to text that does
+    /// not parse. Zero is accepted by the grammar and so is accepted here.
+    #[error("repeats count {count} exceeds i64::MAX, which pattern syntax cannot express")]
+    RepeatsOutOfRange {
+        /// The offending count.
+        count: u64,
+    },
+    /// A `Load` path has a list index larger than the pattern lexer can read back.
+    ///
+    /// The lexer reads integer literals as `i64`, so `[n]` in a path parses only
+    /// for `n <= i64::MAX`. A larger index would render to text that does not parse.
+    #[error("instruction {instr} has path index {index} above i64::MAX, which pattern syntax cannot express")]
+    PathIndexOutOfRange {
+        /// The offending instruction.
+        instr: u32,
+        /// The offending index.
+        index: u64,
     },
     /// One value is consumed by more than one operand.
     ///
@@ -317,7 +338,18 @@ impl Program {
             };
 
             match &instr.op {
-                Op::Load { .. } => {}
+                Op::Load { path } => {
+                    for step in &path.steps {
+                        if let PathStep::Index(n) = step {
+                            if *n > i64::MAX as u64 {
+                                return Err(IrError::PathIndexOutOfRange {
+                                    instr: instr.id.0,
+                                    index: *n,
+                                });
+                            }
+                        }
+                    }
+                }
                 Op::Compare {
                     operator,
                     negated,
@@ -377,7 +409,13 @@ impl Program {
                         return Err(IrError::NonFiniteFloat { instr: instr.id.0 });
                     }
                 }
-                Op::Repeats { input, .. } | Op::StartStop { input, .. } => check_value(*input)?,
+                Op::Repeats { input, count } => {
+                    check_value(*input)?;
+                    if *count > i64::MAX as u64 {
+                        return Err(IrError::RepeatsOutOfRange { count: *count });
+                    }
+                }
+                Op::StartStop { input, .. } => check_value(*input)?,
                 Op::Observe { block } => {
                     if !comparison_blocks.contains(block) {
                         return Err(IrError::UnknownBlock {
@@ -767,5 +805,173 @@ mod tests {
             }
         }
         assert!(matches!(p.validate(), Err(IrError::NonFiniteFloat { .. })));
+    }
+
+    /// A `Repeats` program over `[file:name='a']` with the given count.
+    fn repeats_program(count: u64) -> Program {
+        let mut p = lower(&parse("[file:name='a'] REPEATS 2 TIMES").unwrap());
+        for instr in &mut p.main.instructions {
+            if let Op::Repeats { count: c, .. } = &mut instr.op {
+                *c = count;
+            }
+        }
+        p
+    }
+
+    #[test]
+    fn accepts_the_largest_readable_repeats_count_and_round_trips() {
+        let p = repeats_program(i64::MAX as u64);
+        assert_eq!(p.validate(), Ok(()));
+        let text = crate::ir::render(&p);
+        assert!(parse(&text).is_ok(), "{text}");
+    }
+
+    #[test]
+    fn accepts_zero_repeats_count_the_grammar_accepts() {
+        let p = repeats_program(0);
+        assert_eq!(p.validate(), Ok(()));
+        assert!(parse(&crate::ir::render(&p)).is_ok());
+    }
+
+    #[test]
+    fn rejects_repeats_counts_the_lexer_cannot_read() {
+        for count in [i64::MAX as u64 + 1, u64::MAX] {
+            assert_eq!(
+                repeats_program(count).validate(),
+                Err(IrError::RepeatsOutOfRange { count })
+            );
+        }
+    }
+
+    /// A program whose comparison block loads a path ending in `Index(index)`.
+    fn index_program(index: u64) -> Program {
+        let mut p = valid();
+        for instr in &mut p.blocks[0].instructions {
+            if let Op::Load { path } = &mut instr.op {
+                path.steps.push(PathStep::Index(index));
+            }
+        }
+        p
+    }
+
+    #[test]
+    fn accepts_the_largest_readable_path_index_and_round_trips() {
+        let p = index_program(i64::MAX as u64);
+        assert_eq!(p.validate(), Ok(()));
+        let text = crate::ir::render(&p);
+        assert!(parse(&text).is_ok(), "{text}");
+    }
+
+    #[test]
+    fn rejects_path_indices_the_lexer_cannot_read() {
+        for index in [i64::MAX as u64 + 1, u64::MAX] {
+            assert!(
+                matches!(
+                    index_program(index).validate(),
+                    Err(IrError::PathIndexOutOfRange { index: i, .. }) if i == index
+                ),
+                "{index}"
+            );
+        }
+    }
+
+    /// Deterministic xorshift64 generator.
+    struct Rng(u64);
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+    }
+
+    #[test]
+    fn validated_programs_always_render_to_parseable_text() {
+        let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+        let edge_counts = [
+            0,
+            1,
+            i64::MAX as u64 - 1,
+            i64::MAX as u64,
+            i64::MAX as u64 + 1,
+            u64::MAX,
+        ];
+        let edge_secs = [
+            0.0,
+            -0.0,
+            1.0,
+            -1.5,
+            0.1,
+            1e300,
+            -1e300,
+            f64::MAX,
+            f64::MIN,
+            f64::MIN_POSITIVE,
+            5e-324,
+            9.3e18,
+            -9.3e18,
+        ];
+        let mut validated = 0;
+        for _ in 0..600 {
+            let mut p = lower(&parse("[file:name='a']").unwrap());
+            let n_idx = rng.next() % 3;
+            for _ in 0..n_idx {
+                let index = match rng.next() % 3 {
+                    0 => edge_counts[(rng.next() % 6) as usize],
+                    1 => rng.next(),
+                    _ => rng.next() >> 1,
+                };
+                for instr in &mut p.blocks[0].instructions {
+                    if let Op::Load { path } = &mut instr.op {
+                        path.steps.push(PathStep::Index(index));
+                    }
+                }
+            }
+            let mut acc = p.main.instructions[0].id;
+            p.main.instructions.pop(); // drop the Ret; re-added below
+            let mut next = 1000u32;
+            for _ in 0..(1 + rng.next() % 3) {
+                let id = InstrId(next);
+                next += 1;
+                let op = if rng.next().is_multiple_of(2) {
+                    let count = match rng.next() % 3 {
+                        0 => edge_counts[(rng.next() % 6) as usize],
+                        1 => rng.next(),
+                        _ => rng.next() >> 1,
+                    };
+                    Op::Repeats { input: acc, count }
+                } else {
+                    let seconds = match rng.next() % 3 {
+                        0 => edge_secs[(rng.next() % edge_secs.len() as u64) as usize],
+                        1 => f64::from_bits(rng.next()),
+                        _ => (rng.next() % 100_000) as f64 / 7.0,
+                    };
+                    Op::Within {
+                        input: acc,
+                        seconds,
+                    }
+                };
+                p.main.instructions.push(Instruction { id, op, span: None });
+                acc = id;
+            }
+            p.main.instructions.push(Instruction {
+                id: InstrId(next),
+                op: Op::Ret { value: acc },
+                span: None,
+            });
+            if p.validate().is_ok() {
+                validated += 1;
+                let text = crate::ir::render(&p);
+                assert!(
+                    parse(&text).is_ok(),
+                    "validated program failed to reparse: {text}"
+                );
+            }
+        }
+        assert!(
+            validated > 100,
+            "generator produced too few valid programs: {validated}"
+        );
     }
 }
