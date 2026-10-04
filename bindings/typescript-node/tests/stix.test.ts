@@ -79,4 +79,32 @@ describe("stix node binding", () => {
     ).toThrow(ValidationError);
     try { engine.parsePattern("[bad"); } catch (e) { expect(e).toBeInstanceOf(StixError); }
   });
+
+  describe("deep patterns (issue #50)", () => {
+    const worst = (n: number) => {
+      let s = "[a:b = 1]";
+      for (let i = 0; i < n; i++) {
+        s = "[a:b = 1] FOLLOWEDBY [a:b = 1] OR [a:b = 1] AND (" + s + ")";
+      }
+      return s;
+    };
+
+    it("returns .ast for a pattern at the nesting limit", () => {
+      const ast = new Engine().parsePattern(worst(40)).ast;
+      expect(typeof ast).toBe("object");
+      expect(JSON.parse(JSON.stringify(ast))).toEqual(ast);
+    });
+
+    it("rejects a pattern past the nesting limit", () => {
+      const engine = new Engine();
+      expect(() => engine.parsePattern(worst(41))).toThrow(ParseError);
+      expect(() => engine.parsePattern(worst(41))).toThrow(/nests too deeply/);
+    });
+
+    it("handles a 10,000-term flat OR chain", () => {
+      const src = Array(10000).fill("[a:b = 1]").join(" OR ");
+      const ast = new Engine().parsePattern(src).ast;
+      expect(ast.expression.Or.length).toBe(10000);
+    });
+  });
 });
