@@ -17,6 +17,20 @@ fn map_err(e: stix_ffi::FfiError) -> Error {
     Error::from_reason(format!("[{code}] {}", e.message))
 }
 
+/// Parse an AST/IR JSON document with serde_json's default 128-level recursion
+/// limit disabled. This is safe only because the document comes from
+/// `Pattern::to_json()` on a pattern accepted by `parse`, which caps nesting at
+/// `stix_pattern::MAX_NESTING` (40), so JSON depth stays at about
+/// 2 * MAX_NESTING plus a small constant. Do not use it for untrusted JSON.
+fn parse_ast_json(json: &str) -> serde_json::Result<serde_json::Value> {
+    use serde::Deserialize;
+    let mut de = serde_json::Deserializer::from_str(json);
+    de.disable_recursion_limit();
+    let value = serde_json::Value::deserialize(&mut de)?;
+    de.end()?;
+    Ok(value)
+}
+
 fn json_err(e: serde_json::Error) -> Error {
     Error::from_reason(format!("[model] {e}"))
 }
@@ -30,7 +44,7 @@ pub struct Pattern {
 impl Pattern {
     #[napi(getter)]
     pub fn ast(&self) -> Result<serde_json::Value> {
-        serde_json::from_str(&self.inner.to_json()).map_err(json_err)
+        parse_ast_json(&self.inner.to_json()).map_err(json_err)
     }
 }
 
