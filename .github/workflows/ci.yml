@@ -48,3 +48,71 @@ jobs:
       - name: Build playground
         working-directory: bindings/typescript-wasm
         run: npm run build:playground
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bindings/typescript-node -> target
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # No committed package-lock.json yet, so `npm ci` is unavailable (and
+      # setup-node's npm cache needs a lockfile). Follow-up for the ts-node owner.
+      - name: Install dependencies
+        working-directory: bindings/typescript-node
+        run: npm install
+      - name: Test
+        working-directory: bindings/typescript-node
+        run: npm test
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bindings/python -> target
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: bindings/python/pyproject.toml
+      - name: Install build and test tools
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install "maturin>=1.5,<2.0" pytest
+      - name: Build extension
+        working-directory: bindings/python
+        run: |
+          . ../../.venv/bin/activate
+          maturin develop
+      - name: Test
+        working-directory: bindings/python
+        run: |
+          . ../../.venv/bin/activate
+          python -m pytest -q
+
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bindings/java/rust -> target
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      # cargoBuild is a dependency of `test`; runs StixTest and HandleLifetimeTest.
+      - name: Test
+        working-directory: bindings/java
+        run: gradle test --no-daemon
