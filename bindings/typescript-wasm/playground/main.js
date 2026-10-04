@@ -3,6 +3,7 @@ import { EXAMPLES } from "./examples.js";
 import { irToMermaid, instructionsInOrder, isInstructionLine } from "./graph.js";
 import { spanToRange, parseErrorSpan } from "./spans.js";
 import { nextTabIndex } from "./tabs.js";
+import { MERMAID_MAX_EDGES, MERMAID_MAX_TEXT_SIZE } from "./limits.js";
 
 const $ = (id) => document.getElementById(id);
 const input = $("pattern");
@@ -174,6 +175,8 @@ async function start() {
     startOnLoad: false,
     securityLevel: "strict",
     suppressErrorRendering: true,
+    maxEdges: MERMAID_MAX_EDGES, // see limits.js
+    maxTextSize: MERMAID_MAX_TEXT_SIZE,
     theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default",
   });
 
