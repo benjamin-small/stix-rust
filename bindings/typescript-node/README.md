@@ -48,3 +48,19 @@ engine.registerType("x-acme-widget", (obj) => ({
 
 Hooks run at `parseBundle` time; throwing raises `ValidationError`. Errors are
 `StixError` subclasses: `ParseError`, `ModelError`, `MatchError`, `ValidationError`.
+Passing the wrong kind of object (e.g. `matchBundle(bundle, pattern)`) also raises
+`ValidationError`.
+
+## Internals
+
+`binding.js` is the raw napi layer and is not a public API. It exports plain
+functions over opaque `External` handles (`createEngine`, `parsePattern`,
+`matchBundle`, ...) rather than `#[napi]` classes: napi-rs 2.x does not
+type-check class instances on unwrap, while `External<T>` checks the Rust type
+on every call, so a wrong handle is a `[validation]` error instead of a crash.
+
+Remaining limit: napi-rs reads the `TypeId` from the External's data pointer
+before it can compare it. An External created by a *different* native addon with a
+NULL or too-short data pointer therefore reaches an unchecked read inside napi-rs.
+Pure JavaScript cannot create Externals, so this needs a hostile native addon
+loaded into the same process, which can already do anything.
