@@ -161,9 +161,30 @@ pub struct Program {
     pub main: Block,
 }
 
+/// Counts calls to the linear-scan lookups, so tests can assert that the hot
+/// paths never make one. Thread-local, so parallel tests do not disturb each
+/// other.
+#[cfg(test)]
+pub(crate) mod scans {
+    use std::cell::Cell;
+
+    thread_local!(static COUNT: Cell<usize> = const { Cell::new(0) });
+
+    pub(crate) fn record() {
+        COUNT.with(|c| c.set(c.get() + 1));
+    }
+
+    /// Scans made on this thread since it started.
+    pub(crate) fn count() -> usize {
+        COUNT.with(Cell::get)
+    }
+}
+
 impl Program {
     /// The comparison block with the given id, if present.
     pub fn block(&self, id: BlockId) -> Option<&Block> {
+        #[cfg(test)]
+        scans::record();
         self.blocks.iter().find(|b| b.id == id)
     }
 }
@@ -171,6 +192,8 @@ impl Program {
 impl Block {
     /// The instruction with the given id, if present in this block.
     pub fn instruction(&self, id: InstrId) -> Option<&Instruction> {
+        #[cfg(test)]
+        scans::record();
         self.instructions.iter().find(|i| i.id == id)
     }
 

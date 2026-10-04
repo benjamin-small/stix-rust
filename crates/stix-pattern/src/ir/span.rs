@@ -3,7 +3,8 @@
 use std::collections::HashSet;
 
 use crate::error::Span;
-use crate::ir::{Block, BlockId, InstrId, Op, Program};
+use crate::ir::index::ProgramIndex;
+use crate::ir::{BlockId, InstrId, Op, Program};
 
 impl Program {
     /// The source extent of an instruction: its own span when it has one,
@@ -39,6 +40,7 @@ impl Program {
     /// assert_eq!(&src[span.start..span.end], src);
     /// ```
     pub fn span_of(&self, block: BlockId, instr: InstrId) -> Option<Span> {
+        let index = ProgramIndex::new(self);
         let mut extent: Option<Span> = None;
         // A validated program is acyclic, but this is meant to be safe on one
         // that is not, so never visit the same instruction twice.
@@ -49,7 +51,7 @@ impl Program {
             if !visited.insert((block_id, instr_id)) {
                 continue;
             }
-            let Some(b) = self.block_including_main(block_id) else {
+            let Some(b) = index.block_including_main(block_id) else {
                 continue;
             };
             let Some(i) = b.instruction(instr_id) else {
@@ -71,8 +73,8 @@ impl Program {
                 | Op::StartStop { input, .. } => stack.push((block_id, *input)),
                 Op::Yield { value } | Op::Ret { value } => stack.push((block_id, *value)),
                 Op::Observe { block: target } => {
-                    if let Some(cb) = self.block(*target) {
-                        if let Some(Op::Yield { value }) = cb.terminator().map(|t| &t.op) {
+                    if let Some(cb) = index.block(*target) {
+                        if let Some(Op::Yield { value }) = cb.block().terminator().map(|t| &t.op) {
                             stack.push((*target, *value));
                         }
                     }
@@ -80,15 +82,6 @@ impl Program {
             }
         }
         extent
-    }
-
-    /// The block with this id, whether it is a comparison block or `main`.
-    fn block_including_main(&self, id: BlockId) -> Option<&Block> {
-        if self.main.id == id {
-            Some(&self.main)
-        } else {
-            self.block(id)
-        }
     }
 }
 

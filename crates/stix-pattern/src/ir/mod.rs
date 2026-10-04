@@ -33,10 +33,13 @@
 //! `Observe` ([`IrError::BlockObservedTwice`]), so every instruction is rendered
 //! at most once and output is linear in the size of the program.
 
+mod index;
 mod instr;
 mod lower;
 mod print;
 mod render;
+#[cfg(test)]
+mod scale_tests;
 mod span;
 mod validate;
 

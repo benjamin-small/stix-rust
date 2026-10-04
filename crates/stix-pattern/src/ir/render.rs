@@ -3,7 +3,8 @@
 use std::collections::HashSet;
 
 use crate::ast::{ComparisonOperator, Literal, ObjectPath, PathStep};
-use crate::ir::{Block, InstrId, Instruction, Op, Operand, Program};
+use crate::ir::index::{BlockIndex, ProgramIndex};
+use crate::ir::{InstrId, Instruction, Op, Operand, Program};
 
 /// Render a program as canonical STIX pattern text.
 ///
@@ -48,7 +49,8 @@ pub fn render(program: &Program) -> String {
         ..
     }) = program.main.terminator()
     {
-        Renderer::new(program).run(*value, &mut out);
+        let index = ProgramIndex::new(program);
+        Renderer::new(&index).run(*value, &mut out);
     }
     out
 }
@@ -93,7 +95,7 @@ enum Work<'p> {
     /// Write the comparison-tier value `value` of `block`, parenthesized when its
     /// operator binds more loosely than `min_prec`.
     Comparison {
-        block: &'p Block,
+        block: &'p BlockIndex<'p>,
         value: InstrId,
         min_prec: u8,
     },
@@ -107,7 +109,7 @@ enum Work<'p> {
 
 /// The state of one [`render`] call.
 struct Renderer<'p> {
-    program: &'p Program,
+    index: &'p ProgramIndex<'p>,
     stack: Vec<Work<'p>>,
     /// The instructions currently being written: each one's ancestors, plus
     /// itself. An operand already on the path names one of its own ancestors,
@@ -121,9 +123,9 @@ struct Renderer<'p> {
 }
 
 impl<'p> Renderer<'p> {
-    fn new(program: &'p Program) -> Self {
+    fn new(index: &'p ProgramIndex<'p>) -> Self {
         Renderer {
-            program,
+            index,
             stack: Vec::new(),
             on_path: HashSet::new(),
         }
@@ -195,8 +197,8 @@ impl<'p> Renderer<'p> {
     /// A change to the parser's precedence needs a matching change here, or
     /// rendering stops round-tripping.
     fn observation(&mut self, value: InstrId, min_prec: u8, out: &mut String) {
-        let program = self.program;
-        let Some(instr) = program.main.instruction(value) else {
+        let index = self.index;
+        let Some(instr) = index.main().instruction(value) else {
             return;
         };
         if !self.enter(Tier::Observation, value, obs_prec(&instr.op), min_prec, out) {
@@ -207,8 +209,8 @@ impl<'p> Renderer<'p> {
             Op::Observe { block: target } => {
                 out.push('[');
                 self.stack.push(Work::Text("]"));
-                if let Some(cb) = program.block(*target) {
-                    if let Some(Op::Yield { value }) = cb.terminator().map(|t| &t.op) {
+                if let Some(cb) = index.block(*target) {
+                    if let Some(Op::Yield { value }) = cb.block().terminator().map(|t| &t.op) {
                         self.stack.push(Work::Comparison {
                             block: cb,
                             value: *value,
@@ -256,7 +258,13 @@ impl<'p> Renderer<'p> {
     ///
     /// A change to the parser's precedence needs a matching change here, or
     /// rendering stops round-tripping.
-    fn comparison(&mut self, block: &'p Block, value: InstrId, min_prec: u8, out: &mut String) {
+    fn comparison(
+        &mut self,
+        block: &'p BlockIndex<'p>,
+        value: InstrId,
+        min_prec: u8,
+        out: &mut String,
+    ) {
         let Some(instr) = block.instruction(value) else {
             return;
         };
@@ -285,7 +293,7 @@ impl<'p> Renderer<'p> {
 
 /// Write one comparison, a leaf of the comparison tier.
 fn render_compare(
-    block: &Block,
+    block: &BlockIndex<'_>,
     operator: ComparisonOperator,
     negated: bool,
     lhs: InstrId,
