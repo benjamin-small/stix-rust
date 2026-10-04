@@ -2,13 +2,32 @@
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
-/// Parse a JSON string into a native Python object (dict/list/...).
-fn json_to_py(py: Python<'_>, json: &str) -> PyResult<Py<PyAny>> {
-    let value: serde_json::Value = serde_json::from_str(json)
-        .map_err(|e| crate::errors::ParseError::new_err(e.to_string()))?;
-    let obj = pythonize::pythonize(py, &value)
+/// Convert a `serde_json::Value` into a native Python object.
+fn value_to_py(py: Python<'_>, value: &serde_json::Value) -> PyResult<Py<PyAny>> {
+    let obj = pythonize::pythonize(py, value)
         .map_err(|e| crate::errors::ModelError::new_err(e.to_string()))?;
     Ok(obj.unbind())
+}
+
+/// Parse an object JSON document into a native Python object (dict/list/...).
+/// Keeps serde_json's default recursion limit; a failure is a model error.
+fn json_to_py(py: Python<'_>, json: &str) -> PyResult<Py<PyAny>> {
+    let value: serde_json::Value = serde_json::from_str(json)
+        .map_err(|e| crate::errors::ModelError::new_err(e.to_string()))?;
+    value_to_py(py, &value)
+}
+
+/// Parse a pattern AST JSON document into a native Python object, with no
+/// recursion limit. Safe because `stix_pattern::parse` caps nesting at
+/// `MAX_NESTING` (40), bounding the AST JSON depth to about 2 * MAX_NESTING
+/// plus a small constant. This holds only for ASTs produced by `parse`.
+fn ast_json_to_py(py: Python<'_>, json: &str) -> PyResult<Py<PyAny>> {
+    use serde::Deserialize;
+    let mut de = serde_json::Deserializer::from_str(json);
+    de.disable_recursion_limit();
+    let value = serde_json::Value::deserialize(&mut de)
+        .map_err(|e| crate::errors::ModelError::new_err(e.to_string()))?;
+    value_to_py(py, &value)
 }
 
 #[pyclass]
@@ -21,7 +40,7 @@ impl Pattern {
     /// The pattern's AST as a native Python dict.
     #[getter]
     fn ast(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        json_to_py(py, &self.inner.to_json())
+        ast_json_to_py(py, &self.inner.to_json())
     }
 
     fn __repr__(&self) -> String {
