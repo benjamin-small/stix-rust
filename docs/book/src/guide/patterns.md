@@ -146,28 +146,24 @@ text they came from.
 
 `ir::render` goes the other way, producing *canonical* pattern text — normalized
 whitespace, parentheses only where precedence needs them, and `!=` as the sole
-spelling of not-equal (the grammar's other spelling, `<>`, is not currently
-accepted by this crate's lexer; see
-[issue #29](https://github.com/benjamin-small/stix-rust/issues/29)). For an ASCII
-pattern, rendering then reparsing recovers the same AST, which makes canonical
-text a usable basis for comparing two patterns:
+spelling of not-equal (`<>` is accepted on input and rendered as `!=`). Rendering
+then reparsing recovers the same AST, which makes canonical text a usable basis
+for comparing two patterns:
 
 ```rust
 let text = stix::pattern::ir::render(&program);
 assert_eq!(text, "[file:size > 1024] FOLLOWEDBY [file:name = 'a']");
 ```
 
-Three caveats. A non-ASCII string literal does *not* survive the round trip:
-`[file:name = 'café']` renders as `[file:name = 'cafÃ©']`, because the lexer
-decodes string literals as Latin-1
-([issue #30](https://github.com/benjamin-small/stix-rust/issues/30)).
-
-The IR also represents more than the matcher can execute — `FOLLOWEDBY` and the
-qualifiers lower and render correctly but still return
+Two caveats. The IR represents more than the matcher can execute — `FOLLOWEDBY`
+and the qualifiers lower and render correctly but still return
 `MatchError::Unsupported` when matched.
 
 And a `Program` that was deserialized or built by hand should be checked with
 `Program::validate()` first, since deserialization does not verify invariants.
 `validate` is what rejects the shapes that would make `render` produce text that
-does not parse, and it caps nesting depth at `ir::MAX_DEPTH` so a deeply nested
-deserialized program is rejected rather than overflowing the stack.
+does not parse. It also requires that each value is used at most once and each
+comparison block is observed at most once, so `render` writes every instruction
+at most once and its output is linear in the size of the program. There is no
+depth limit: `render` is iterative, so a deeply nested program cannot overflow
+the stack.

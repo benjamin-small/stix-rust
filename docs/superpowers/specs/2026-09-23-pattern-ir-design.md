@@ -255,7 +255,8 @@ them.
 ## Lowering
 
 `lower(&Pattern) -> Program` is a **total, infallible** post-order walk. A
-well-formed AST always lowers; there is no error path.
+well-formed AST always lowers; there is no error path, and the result always
+passes `validate()`.
 
 - Each `ObservationExpression::Observation` opens a new comparison block. The
   comparison tree inside lowers to `Load`/`Compare`/`And`/`Or`, terminated by
@@ -382,17 +383,18 @@ Rules:
 - `main.kind` is `Main` and every entry in `blocks` is `Comparison`.
 - **No value is referenced more than once.** Pattern text cannot name a shared value,
   so `render` must duplicate a shared subexpression — a DAG was never faithfully
-  representable as text. Single use makes the IR a tree, which `render` already
-  assumes, and bounds rendered output in the size of the program. Zero uses stays
-  legal (see dead instructions below). *Block* references are not covered: several
-  `Observe`s may target one comparison block, which leaves render cost quadratic
-  rather than linear — tracked as
-  [issue #33](https://github.com/benjamin-small/stix-rust/issues/33).
-- **Nesting does not exceed `ir::MAX_DEPTH`.** `render` is recursive, so an
-  arbitrarily deep program would overflow the stack; the bound was set from measured
-  overflow depths with a wide margin, low enough to stay safe on wasm's 1 MiB stack.
-  Removing it means making `render` iterative —
-  [issue #32](https://github.com/benjamin-small/stix-rust/issues/32).
+  representable as text. Single use makes the value graph a tree, which `render`
+  already assumes. Zero uses stays legal (see dead instructions below).
+- **Each comparison block is targeted by at most one `Observe`.** Block references
+  are the one sharing the value rule does not cover, and several `Observe`s on one
+  block would make render cost quadratic. With both rules every instruction renders
+  at most once, so rendered output is linear in the size of the program.
+  (Added 2026-10: #33, `IrError::BlockObservedTwice`. This replaced the earlier
+  "known gap" note that several `Observe`s may share a block.)
+- **There is no nesting limit.** (Superseded 2026-10: this spec originally required
+  that nesting not exceed `ir::MAX_DEPTH`, because `render` was recursive. #32 made
+  `render` iterative and removed `MAX_DEPTH` and `IrError::TooDeep`; neither shipped
+  in a release.)
 
 **Dead instructions are legal.** An editor mid-edit routinely holds an orphaned
 instruction it is about to rewire, and a validator that rejects that is a validator
@@ -462,15 +464,11 @@ remains true after this lands.
    without panic.
 2. `parse(render(lower(ast))).without_spans() == ast.without_spans()` holds for all
    29 corpus patterns.
-3. `validate()` accepts every lowered program that nests no deeper than
-   `ir::MAX_DEPTH`, and rejects each hand-built violation with the correct typed
-   error. The qualification is real: the parser uses loops for left-associated
-   chains, so a flat chain of more than `MAX_DEPTH` terms parses, lowers and renders
-   correctly but fails `validate` with `TooDeep`. It is accepted because the
-   idiomatic way to express many values is a set — `IN ('a', 'b', …)` is one
-   instruction at depth 3 however large it grows — so realistic patterns are
-   unaffected, and a low bound is what keeps the wasm binding safe.
-   [Issue #32](https://github.com/benjamin-small/stix-rust/issues/32) tracks removing
-   it.
+3. `validate()` accepts every lowered program, unconditionally, and rejects each
+   hand-built violation with the correct typed error. (Superseded 2026-10: this
+   criterion was briefly qualified as "that nests no deeper than `ir::MAX_DEPTH`",
+   because a flat chain of hundreds of terms failed with `TooDeep`. #32 made
+   `render` iterative and removed the limit, so `lower`'s invariant is unconditional
+   again.)
 4. A `Program` survives a JSON serialize/deserialize round trip unchanged.
 5. `cargo test` green workspace-wide, `cargo clippy` clean, `missing_docs` satisfied.
