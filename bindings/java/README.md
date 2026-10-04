@@ -44,6 +44,14 @@ Hooks run at `parseBundle` time (throwing raises `ValidationException`). Errors 
 `ValidationException`. Handles are `AutoCloseable` (use try-with-resources); a
 `Cleaner` frees any not explicitly closed.
 
+**Handle lifetime.** `close()` is idempotent. Any use of an `Engine`, `Pattern` or
+`Bundle` after `close()` throws `IllegalStateException`. Handles are thread-safe with
+respect to closing: native calls hold the read side of a per-handle
+`ReentrantReadWriteLock` and `close()` takes the write side, so a concurrent `close()`
+waits for in-flight calls, and later calls throw. Each call also fences the handle with
+`Reference.reachabilityFence`. `Engine.registerType` is not synchronized; register hooks
+before sharing an engine across threads.
+
 > The native library is built by cargo and loaded from `rust/target/release` via
 > `java.library.path` during tests. Bundling the native library into a jar for
 > distribution is a publish-time follow-up.

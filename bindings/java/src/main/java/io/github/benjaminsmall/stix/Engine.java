@@ -3,43 +3,52 @@ package io.github.benjaminsmall.stix;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import java.lang.ref.Cleaner;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
-/** Parses patterns/bundles and runs matches. Register custom-type hooks here. */
-public final class Engine implements AutoCloseable {
+/**
+ * Parses patterns/bundles and runs matches. Register custom-type hooks here. Using a
+ * closed engine throws {@link IllegalStateException}. Parsing and matching may be called
+ * from several threads; registerType is not synchronized, so register hooks before
+ * sharing the engine.
+ */
+public final class Engine extends NativeHandle {
     static { NativeLoader.load(); }
-    private static final Cleaner CLEANER = Cleaner.create();
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final long ptr;
-    private final Cleaner.Cleanable cleanable;
     private final Map<String, Function<Map<String, Object>, Map<String, Object>>> hooks =
         new HashMap<>();
 
     public Engine() {
-        this.ptr = nativeNew();
-        this.cleanable = CLEANER.register(this, () -> nativeFree(ptr));
+        super("Engine", nativeNew(), Engine::nativeFree);
     }
 
+    /** @throws IllegalStateException if the engine is closed */
     public Pattern parsePattern(String src) {
-        return new Pattern(nativeParsePattern(ptr, src));
+        return new Pattern(useHandle(p -> nativeParsePattern(p, src)));
     }
 
+    /** @throws IllegalStateException if the engine is closed */
     public Bundle parseBundle(String json) {
+        useHandle(p -> null); // fail fast on a closed engine, before running hooks
         String toNative = json;
         if (!hooks.isEmpty()) {
             toNative = applyHooks(json);
         }
-        return new Bundle(nativeParseBundle(ptr, toNative));
+        final String payload = toNative;
+        return new Bundle(useHandle(p -> nativeParseBundle(p, payload)));
     }
 
+    /** @throws IllegalStateException if the engine, pattern or bundle is closed */
     public MatchResult matchBundle(Pattern pattern, Bundle bundle) {
-        String json = nativeMatchBundle(pattern.ptr(), bundle.ptr());
+        useHandle(p -> null); // the engine must be open too
+        String json = Objects.requireNonNull(pattern, "pattern")
+            .useHandle(pp -> Objects.requireNonNull(bundle, "bundle")
+                .useHandle(bp -> nativeMatchBundle(pp, bp)));
         try {
             JsonNode n = MAPPER.readTree(json);
             boolean matched = n.get("matched").asBoolean();
@@ -92,9 +101,6 @@ public final class Engine implements AutoCloseable {
             throw new ModelException(e.getMessage());
         }
     }
-
-    @Override
-    public void close() { cleanable.clean(); }
 
     private static native long nativeNew();
     private static native void nativeFree(long ptr);
