@@ -127,19 +127,31 @@ pub enum IrError {
     /// Pattern text has no way to name a shared value, so a shared
     /// subexpression would have to be re-rendered once per use — making output
     /// exponential in the number of instructions. Requiring each value to have
-    /// at most one consumer keeps the IR a tree, which is what
+    /// at most one consumer keeps every value expression a tree, which is what
     /// [`render`](crate::ir::render) already assumes.
     ///
-    /// This covers values only. Blocks remain shareable — several `Observe`s may
-    /// target one comparison block — so output is bounded quadratically, not
-    /// linearly, in the size of the program. See
-    /// [issue #33](https://github.com/benjamin-small/stix-rust/issues/33).
+    /// This covers values only. A comparison *block* is not a value; its reuse
+    /// is bounded separately, by [`IrError::BlockObservedTwice`].
     #[error("instruction {instr} references value {value}, which is already used elsewhere")]
     MultipleUses {
         /// The referencing instruction.
         instr: u32,
         /// The value that was already used.
         value: u32,
+    },
+    /// A comparison block is the target of more than one `Observe`.
+    ///
+    /// `Observe` names a block rather than a value, so the single-use rule does
+    /// not cover it. Pattern text cannot name a shared block either: each
+    /// `Observe` is rendered as its own copy of the block, so sharing one block
+    /// among *k* observes makes output grow with *k* times the block's size —
+    /// quadratic in the program. Requiring each block to be observed at most
+    /// once keeps rendered size linear. [`lower`](crate::ir::lower) already
+    /// allocates one block per observation.
+    #[error("block {block} is observed more than once")]
+    BlockObservedTwice {
+        /// The block that was observed again.
+        block: u32,
     },
     /// An expression nests more deeply than [`MAX_DEPTH`].
     #[error("expression nests {depth} levels deep, more than the maximum of {max}")]
@@ -187,7 +199,8 @@ impl Program {
     ///
     /// Unreferenced ("dead") instructions are allowed — only dangling and
     /// forward *references* are errors. A value may have at most one consumer,
-    /// however: see [`IrError::MultipleUses`].
+    /// however, and a comparison block at most one `Observe`: see
+    /// [`IrError::MultipleUses`] and [`IrError::BlockObservedTwice`].
     ///
     /// Nesting depth is capped at [`MAX_DEPTH`], so a program that would
     /// overflow the stack when rendered is rejected instead.
@@ -230,8 +243,15 @@ impl Program {
 
         let mut seen_instrs = HashSet::new();
         let mut used_values = HashSet::new();
+        let mut observed_blocks = HashSet::new();
         for b in self.blocks.iter().chain(std::iter::once(&self.main)) {
-            self.check_block(b, &comparison_blocks, &mut seen_instrs, &mut used_values)?;
+            self.check_block(
+                b,
+                &comparison_blocks,
+                &mut seen_instrs,
+                &mut used_values,
+                &mut observed_blocks,
+            )?;
         }
         self.check_depth()
     }
@@ -265,6 +285,7 @@ impl Program {
         comparison_blocks: &HashSet<BlockId>,
         seen_instrs: &mut HashSet<InstrId>,
         used_values: &mut HashSet<InstrId>,
+        observed_blocks: &mut HashSet<BlockId>,
     ) -> Result<(), IrError> {
         let expected_terminator = match b.kind {
             BlockKind::Comparison => "a yield",
@@ -418,6 +439,9 @@ impl Program {
                             instr: instr.id.0,
                             block: block.0,
                         });
+                    }
+                    if !observed_blocks.insert(*block) {
+                        return Err(IrError::BlockObservedTwice { block: block.0 });
                     }
                 }
             }
@@ -660,6 +684,24 @@ mod tests {
             p.validate(),
             Err(IrError::DuplicateBlockId { .. })
         ));
+    }
+
+    #[test]
+    fn rejects_a_block_observed_twice() {
+        let mut p = lower(&parse("[file:size > 1] AND [file:size > 2]").unwrap());
+        let first = p.blocks[0].id;
+        let mut seen = 0;
+        for i in &mut p.main.instructions {
+            if let Op::Observe { block } = &mut i.op {
+                *block = first;
+                seen += 1;
+            }
+        }
+        assert_eq!(seen, 2);
+        assert_eq!(
+            p.validate(),
+            Err(IrError::BlockObservedTwice { block: first.0 })
+        );
     }
 
     #[test]
