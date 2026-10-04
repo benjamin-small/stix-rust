@@ -113,32 +113,45 @@ function update() {
     return;
   }
 
-  let pattern;
-  try {
-    pattern = engine.parsePattern(text);
-  } catch (e) {
+  // Show a failure in the banner and dim the last good output. The underline
+  // applies only when the message names a span.
+  const showFailure = (e) => {
     const message = messageOf(e);
     const span = parseErrorSpan(message);
     errorRange = span ? spanToRange(text, span) : null;
     errorBanner.textContent = message.replace(/^\[\w+\]\s?/, "");
     errorBanner.hidden = false;
     panes.classList.add("stale"); // keep the last good output, dimmed
+  };
+
+  let pattern;
+  try {
+    pattern = engine.parsePattern(text);
+  } catch (e) {
+    showFailure(e);
     showMark();
     return;
   }
 
-  errorRange = null;
-  errorBanner.hidden = true;
-  panes.classList.remove("stale");
   try {
+    // Read everything before touching the DOM so a failure leaves the panes
+    // untouched (stale) rather than half-updated.
     const ir = pattern.ir;
     const listing = pattern.irListing;
-    $("ast").textContent = JSON.stringify(pattern.ast, null, 2);
-    $("ir").textContent = JSON.stringify(ir, null, 2);
-    $("canonical").textContent = pattern.canonical;
+    const ast = JSON.stringify(pattern.ast, null, 2);
+    const irText = JSON.stringify(ir, null, 2);
+    const canonical = pattern.canonical;
+    errorRange = null;
+    errorBanner.hidden = true;
+    panes.classList.remove("stale");
+    $("ast").textContent = ast;
+    $("ir").textContent = irText;
+    $("canonical").textContent = canonical;
     renderListing(listing);
     current = { text, instrs: instructionsInOrder(ir) };
     renderGraph(ir, listing);
+  } catch (e) {
+    showFailure(e);
   } finally {
     pattern.free();
   }
