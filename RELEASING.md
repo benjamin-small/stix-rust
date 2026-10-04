@@ -22,6 +22,19 @@ to crates.io (5 crates), PyPI (`stix-rust`), and npm (`@stix-rust/node`,
 Before tagging, update [`CHANGELOG.md`](CHANGELOG.md): rename its `[Unreleased]`
 section to the version being cut and date it.
 
+When bumping versions, update both `package.json` files
+(`bindings/typescript-node` and `bindings/typescript-wasm`), including the Node
+binding's `optionalDependencies` on its own `@stix-rust/node-*` platform packages.
+Then refresh the lockfiles and commit the result:
+
+```bash
+(cd bindings/typescript-node && npx -y npm@10 install --package-lock-only)
+(cd bindings/typescript-wasm && npx -y npm@10 install --package-lock-only)
+```
+
+The release jobs run `npm ci`, which fails when a lockfile and its `package.json`
+disagree.
+
 ```bash
 # from an up-to-date main with a green docs build
 git tag v0.1.0
