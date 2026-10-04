@@ -40,5 +40,11 @@ The sharp edges, in one place. Read this before production use.
     families; unparseable input never matches. There is no generic string-set
     containment.
 
+11. **Pattern nesting is capped at 40.** Parenthesized groups plus qualifiers
+    (`WITHIN`, `REPEATS`, `START..STOP`) on any path through a pattern may total at
+    most `stix_pattern::MAX_NESTING` (40); deeper patterns fail to parse with
+    "pattern nests too deeply". Flat chains like `a OR b OR c OR …` are not
+    limited.
+
 Also worth knowing: custom-type hooks run **only at parse/import time** — if you
 mutate an engine's registrations, previously parsed bundles are unaffected.
