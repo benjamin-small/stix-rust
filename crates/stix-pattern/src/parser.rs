@@ -1,4 +1,4 @@
-//! Recursive-descent parser: tokens -> AST.
+//! Iterative parser using an explicit stack: tokens -> AST. Nesting is capped at [`MAX_NESTING`].
 
 use crate::ast::{
     Comparison, ComparisonExpression, ComparisonOperand, ComparisonOperator, Literal, ObjectPath,
