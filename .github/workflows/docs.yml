@@ -22,12 +22,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: wasm32-unknown-unknown }
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            bindings/typescript-wasm -> target
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - name: Install mdbook + mermaid
-        run: cargo install mdbook mdbook-mermaid --locked
-      - name: Install wasm-pack
-        run: cargo install wasm-pack --locked
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: bindings/typescript-wasm/package-lock.json
+      - name: Install mdbook, mdbook-mermaid, wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: mdbook,mdbook-mermaid,wasm-pack
       - name: Build book
         run: mdbook build docs/book
       - name: Build API docs
