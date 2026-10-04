@@ -2,6 +2,7 @@ import init, { Engine } from "./pkg/stix_wasm.js";
 import { EXAMPLES } from "./examples.js";
 import { irToMermaid, instructionsInOrder, isInstructionLine } from "./graph.js";
 import { spanToRange, parseErrorSpan } from "./spans.js";
+import { nextTabIndex } from "./tabs.js";
 
 const $ = (id) => document.getElementById(id);
 const input = $("pattern");
@@ -56,7 +57,9 @@ function nodeInstrId(el) {
 
 function selectTab(name) {
   for (const b of document.querySelectorAll("[data-tab]")) {
-    b.setAttribute("aria-selected", String(b.dataset.tab === name));
+    const selected = b.dataset.tab === name;
+    b.setAttribute("aria-selected", String(selected));
+    b.tabIndex = selected ? 0 : -1;
   }
   for (const p of document.querySelectorAll("[data-pane]")) p.hidden = p.dataset.pane !== name;
   try { localStorage.setItem(TAB_KEY, name); } catch { /* storage unavailable */ }
@@ -168,9 +171,19 @@ async function start() {
     update();
   });
 
-  for (const b of document.querySelectorAll("[data-tab]")) {
+  const tabButtons = [...document.querySelectorAll("[data-tab]")];
+  for (const b of tabButtons) {
     b.addEventListener("click", () => selectTab(b.dataset.tab));
   }
+  document.querySelector("[role=tablist]").addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const current = tabButtons.findIndex((b) => b.getAttribute("aria-selected") === "true");
+    const next = nextTabIndex(current, e.key, tabButtons.length);
+    if (next === null) return;
+    e.preventDefault();
+    selectTab(tabButtons[next].dataset.tab);
+    tabButtons[next].focus();
+  });
   let saved = null;
   try { saved = localStorage.getItem(TAB_KEY); } catch { /* storage unavailable */ }
   selectTab(TABS.includes(saved) ? saved : "graph");
