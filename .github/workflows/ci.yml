@@ -60,11 +60,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      # No committed package-lock.json yet, so `npm ci` is unavailable (and
-      # setup-node's npm cache needs a lockfile). Follow-up for the ts-node owner.
+          cache: npm
+          cache-dependency-path: bindings/typescript-node/package-lock.json
       - name: Install dependencies
         working-directory: bindings/typescript-node
-        run: npm install
+        run: npm ci
       - name: Test
         working-directory: bindings/typescript-node
         run: npm test

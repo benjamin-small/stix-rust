@@ -26,8 +26,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: '${{ matrix.target }}' }
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - run: npm install
+        with: { node-version: 20, cache: npm, cache-dependency-path: bindings/typescript-node/package-lock.json }
+      - run: npm ci
       - run: npx napi build --platform --release --target ${{ matrix.target }} --js binding.js --dts binding.d.ts
       - uses: actions/upload-artifact@v4
         with:
@@ -41,8 +41,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v4
-        with: { node-version: 20, registry-url: 'https://registry.npmjs.org' }
-      - run: npm install
+        with: { node-version: 20, registry-url: 'https://registry.npmjs.org', cache: npm, cache-dependency-path: bindings/typescript-node/package-lock.json }
+      - run: npm ci
       - uses: actions/download-artifact@v4
         with:
           path: bindings/typescript-node/artifacts
@@ -80,9 +80,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: wasm32-unknown-unknown }
       - uses: actions/setup-node@v4
-        with: { node-version: 20, registry-url: 'https://registry.npmjs.org' }
+        with: { node-version: 20, registry-url: 'https://registry.npmjs.org', cache: npm, cache-dependency-path: bindings/typescript-wasm/package-lock.json }
       - run: cargo install wasm-pack --locked
-      - run: npm install
+      - run: npm ci
       - run: npm run build
       # Smoke-test the packed artifact: wasm-pack's pkg/.gitignore must not exclude pkg/
       - name: Verify tarball contents
