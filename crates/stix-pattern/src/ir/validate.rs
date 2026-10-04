@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::ast::{ComparisonOperator, Literal};
+use crate::ast::{ComparisonOperator, Literal, PathStep};
 use crate::ir::{Block, BlockId, BlockKind, InstrId, Op, Operand, Program, SCHEMA_VERSION};
 
 /// Whether a literal is renderable — i.e. not a non-finite float.
@@ -106,6 +106,17 @@ pub enum IrError {
     RepeatsOutOfRange {
         /// The offending count.
         count: u64,
+    },
+    /// A `Load` path has a list index larger than the pattern lexer can read back.
+    ///
+    /// The lexer reads integer literals as `i64`, so `[n]` in a path parses only
+    /// for `n <= i64::MAX`. A larger index would render to text that does not parse.
+    #[error("instruction {instr} has path index {index} above i64::MAX, which pattern syntax cannot express")]
+    PathIndexOutOfRange {
+        /// The offending instruction.
+        instr: u32,
+        /// The offending index.
+        index: u64,
     },
     /// One value is consumed by more than one operand.
     ///
@@ -327,7 +338,18 @@ impl Program {
             };
 
             match &instr.op {
-                Op::Load { .. } => {}
+                Op::Load { path } => {
+                    for step in &path.steps {
+                        if let PathStep::Index(n) = step {
+                            if *n > i64::MAX as u64 {
+                                return Err(IrError::PathIndexOutOfRange {
+                                    instr: instr.id.0,
+                                    index: *n,
+                                });
+                            }
+                        }
+                    }
+                }
                 Op::Compare {
                     operator,
                     negated,
@@ -821,6 +843,38 @@ mod tests {
         }
     }
 
+    /// A program whose comparison block loads a path ending in `Index(index)`.
+    fn index_program(index: u64) -> Program {
+        let mut p = valid();
+        for instr in &mut p.blocks[0].instructions {
+            if let Op::Load { path } = &mut instr.op {
+                path.steps.push(PathStep::Index(index));
+            }
+        }
+        p
+    }
+
+    #[test]
+    fn accepts_the_largest_readable_path_index_and_round_trips() {
+        let p = index_program(i64::MAX as u64);
+        assert_eq!(p.validate(), Ok(()));
+        let text = crate::ir::render(&p);
+        assert!(parse(&text).is_ok(), "{text}");
+    }
+
+    #[test]
+    fn rejects_path_indices_the_lexer_cannot_read() {
+        for index in [i64::MAX as u64 + 1, u64::MAX] {
+            assert!(
+                matches!(
+                    index_program(index).validate(),
+                    Err(IrError::PathIndexOutOfRange { index: i, .. }) if i == index
+                ),
+                "{index}"
+            );
+        }
+    }
+
     /// Deterministic xorshift64 generator.
     struct Rng(u64);
     impl Rng {
@@ -861,6 +915,19 @@ mod tests {
         let mut validated = 0;
         for _ in 0..600 {
             let mut p = lower(&parse("[file:name='a']").unwrap());
+            let n_idx = rng.next() % 3;
+            for _ in 0..n_idx {
+                let index = match rng.next() % 3 {
+                    0 => edge_counts[(rng.next() % 6) as usize],
+                    1 => rng.next(),
+                    _ => rng.next() >> 1,
+                };
+                for instr in &mut p.blocks[0].instructions {
+                    if let Op::Load { path } = &mut instr.op {
+                        path.steps.push(PathStep::Index(index));
+                    }
+                }
+            }
             let mut acc = p.main.instructions[0].id;
             p.main.instructions.pop(); // drop the Ret; re-added below
             let mut next = 1000u32;
