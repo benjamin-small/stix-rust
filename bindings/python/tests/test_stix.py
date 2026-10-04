@@ -94,3 +94,29 @@ def test_register_type_rejection_raises_validation_error():
         engine.parse_bundle(
             '{"type":"bundle","objects":[{"type":"x-acme-widget","id":"x--1"}]}'
         )
+
+
+def _worst_shape(depth):
+    s = "[a:b = 1]"
+    for _ in range(depth):
+        s = "[a:b = 1] FOLLOWEDBY [a:b = 1] OR [a:b = 1] AND (" + s + ")"
+    return s
+
+
+def test_ast_at_max_nesting_round_trips():
+    import json
+
+    ast = stix.Engine().parse_pattern(_worst_shape(40)).ast
+    assert isinstance(ast, dict)
+    assert json.loads(json.dumps(ast)) == ast
+
+
+def test_nesting_over_limit_is_parse_error():
+    with pytest.raises(stix.ParseError, match="nests too deeply"):
+        stix.Engine().parse_pattern(_worst_shape(41))
+
+
+def test_flat_or_chain_of_10000_observations():
+    src = " OR ".join(["[a:b = 1]"] * 10000)
+    ast = stix.Engine().parse_pattern(src).ast
+    assert len(ast["expression"]["Or"]) == 10000
