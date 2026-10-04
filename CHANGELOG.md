@@ -12,6 +12,19 @@ visible. See [RELEASING.md](RELEASING.md).
 
 ### Changed
 
+- **BREAKING:** `ObservationExpression::{And, Or, FollowedBy}` and
+  `ComparisonExpression::{And, Or}` now hold a `Vec` of two or more operands
+  instead of a pair. A left-nested chain is flattened, so `a OR b OR c` is
+  `{"Or": [a, b, c]}`; a parenthesized right operand keeps its own node, so
+  `a OR (b OR c)` is `{"Or": [a, {"Or": [b, c]}]}`. The JSON for two operands is
+  unchanged. Any consumer of `Pattern.ast` that assumed exactly two elements needs
+  updating
+  ([#52](https://github.com/benjamin-small/stix-rust/issues/52)).
+- In the Python binding, a failure converting JSON to a Python object now raises
+  `ModelError` rather than `ParseError`, for both `Pattern.ast` and the object
+  getters. Code that catches `ParseError` around those may need to catch
+  `ModelError` too
+  ([#50](https://github.com/benjamin-small/stix-rust/issues/50)).
 - **BREAKING:** `ObservationExpression::Observation` is now a struct variant.
   Its serialized JSON changes from `{"Observation": {…}}` to
   `{"Observation": {"expression": {…}, "span": {…}}}`, where the old payload is
@@ -20,6 +33,10 @@ visible. See [RELEASING.md](RELEASING.md).
 
 ### Added
 
+- `stix_pattern::MAX_NESTING` (40), the deepest nesting `parse` accepts: the
+  number of parenthesized groups plus qualifiers on any path from the root to a
+  leaf. Flat chains such as `a OR b OR c OR …` add no nesting and have no length
+  limit.
 - `span` fields recording source byte ranges on `Comparison`, `ObjectPath`, and
   the `Observation` and `Qualified` variants of `ObservationExpression`. Note
   that `Pattern.ast` payloads grow accordingly in every binding: about half again
@@ -33,11 +50,14 @@ visible. See [RELEASING.md](RELEASING.md).
   `ir::render` turns a `Program` back into canonical pattern text.
   `Program::validate` checks well-formedness, including that each value is used
   at most once and each comparison block has at most one `Observe`, which keeps
-  rendered output linear in the size of the program. `Program::to_listing` prints
-  a human-readable listing, escaping control characters so one instruction stays
-  on one line, and `Program::span_of` computes the source extent of an
-  instruction that carries no span of its own. There is no depth limit: `render`
-  handles arbitrarily deep programs without overflowing the stack.
+  rendered output linear in the size of the program. `validate` also rejects
+  `REPEATS` counts and path indices above `i64::MAX`, which the parser cannot
+  read back. `render`, `validate` and `span_of` run in linear time.
+  `Program::to_listing` prints a human-readable listing, escaping control
+  characters so one instruction stays on one line, and `Program::span_of`
+  computes the source extent of an instruction that carries no span of its own.
+  There is no depth limit: `render` handles arbitrarily deep programs without
+  overflowing the stack.
 - `stix_ffi::Pattern::ir_json`, `ir_listing` and `canonical`, exposing the IR as
   compact JSON, as the human-readable listing, and as canonical pattern text.
 - In the wasm binding, `Pattern.ir`, `Pattern.irListing` and `Pattern.canonical`
@@ -49,6 +69,15 @@ visible. See [RELEASING.md](RELEASING.md).
 
 ### Fixed
 
+- A pattern nested too deeply (parenthesized groups plus stacked qualifiers) used
+  to crash the process with a stack overflow. It is now rejected with "pattern
+  nests too deeply" once it exceeds `MAX_NESTING`. The parser is now iterative,
+  long flat chains no longer overflow anywhere, and the matcher no longer recurses
+  per object type
+  ([#52](https://github.com/benjamin-small/stix-rust/issues/52)).
+- `Pattern.ast` in the Python, Node and wasm bindings no longer fails with
+  "recursion limit exceeded" for deeply nested or long patterns
+  ([#50](https://github.com/benjamin-small/stix-rust/issues/50)).
 - The pattern lexer accepts `<>` as a spelling of not-equal, as the STIX 2.1
   grammar allows
   ([#29](https://github.com/benjamin-small/stix-rust/issues/29)).

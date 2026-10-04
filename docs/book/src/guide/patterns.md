@@ -42,6 +42,10 @@ Comparison level (inside `[ ]`): `OR` < `AND` < individual test. So
 `[a = 1 OR b = 2 AND c = 3]` parses as `a = 1 OR (b = 2 AND c = 3)` — use
 parentheses when in doubt.
 
+Nesting is limited: parenthesized groups plus qualifiers on any path through a
+pattern may total at most `stix_pattern::MAX_NESTING` (40), or parsing fails with
+"pattern nests too deeply". Chains like `a OR b OR c` do not count towards it.
+
 ## Object paths
 
 A path starts with the **object type**, then walks properties:
@@ -102,6 +106,11 @@ println!("{}", serde_json::to_string_pretty(&pattern).unwrap());
   }
 }
 ```
+
+`AND`, `OR` and `FOLLOWEDBY` nodes (at both levels) hold a list of two or more
+operands, and a left-nested chain is flattened: `[a] OR [b] OR [c]` is
+`{"Or": [a, b, c]}`, not a pair of pairs. A parenthesized right operand keeps its
+own node.
 
 Parse errors carry a byte-offset span into the source string:
 

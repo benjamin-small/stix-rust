@@ -70,7 +70,7 @@ The Rust core, the FFI facade, and all four language bindings are complete and m
 ```
 stix-rust/
 ├── crates/
-│   ├── stix-pattern/   # lexer + recursive-descent parser → pattern AST
+│   ├── stix-pattern/   # lexer + iterative parser → pattern AST
 │   ├── stix-model/     # StixValue, ObjectView, typed/generic objects, Bundle, ObjectStore
 │   ├── stix-matcher/   # matching engine
 │   ├── stix/           # umbrella crate (package `stix-rust`, lib `stix`)
