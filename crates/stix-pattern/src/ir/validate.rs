@@ -1,36 +1,11 @@
 //! Well-formedness checking for a [`Program`].
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use thiserror::Error;
 
 use crate::ast::{ComparisonOperator, Literal};
 use crate::ir::{Block, BlockId, BlockKind, InstrId, Op, Operand, Program, SCHEMA_VERSION};
-
-/// The deepest expression nesting [`Program::validate`] accepts.
-///
-/// [`render`](crate::ir::render) and [`Program::span_of`] walk an instruction's
-/// operands, so a program nested more deeply than the stack can hold would abort
-/// the process rather than fail. `validate` therefore rejects deep programs up
-/// front, which matters most on the deserialization path: a hand-written or
-/// machine-generated JSON `Program` never passes through the parser, where such
-/// input would have been rejected first.
-///
-/// The limit is on nesting *depth*, not on the number of instructions: a program
-/// of any size passes as long as no single expression nests further than this.
-///
-/// The value is set an order of magnitude below the shallowest depth at which
-/// overflow was measured. Rendering alone first overflowed at depth 2,924, and a
-/// full `parse` → `lower` → `render` of a flat `AND` chain at 2,192 — both on an
-/// unoptimized build running on a 2 MiB thread stack, which is the smallest stack
-/// Rust gives a spawned thread. An optimized build and the 8 MiB main thread each
-/// have several times more headroom than that.
-///
-/// The bound exists only because [`render`](crate::ir::render) is recursive. Making
-/// it iterative would let the bound be dropped, restoring the unconditional
-/// guarantee that every program [`lower`](crate::ir::lower) produces validates —
-/// tracked as [issue #32](https://github.com/benjamin-small/stix-rust/issues/32).
-pub const MAX_DEPTH: u32 = 256;
 
 /// Whether a literal is renderable — i.e. not a non-finite float.
 fn literal_is_finite(lit: &Literal) -> bool {
@@ -153,14 +128,6 @@ pub enum IrError {
         /// The block that was observed again.
         block: u32,
     },
-    /// An expression nests more deeply than [`MAX_DEPTH`].
-    #[error("expression nests {depth} levels deep, more than the maximum of {max}")]
-    TooDeep {
-        /// The depth reached.
-        depth: u32,
-        /// The maximum allowed, i.e. [`MAX_DEPTH`].
-        max: u32,
-    },
     /// A `Compare`'s left-hand side is not a `Load`.
     ///
     /// The renderer takes the compared object path from the `Load` it names; any
@@ -202,8 +169,9 @@ impl Program {
     /// however, and a comparison block at most one `Observe`: see
     /// [`IrError::MultipleUses`] and [`IrError::BlockObservedTwice`].
     ///
-    /// Nesting depth is capped at [`MAX_DEPTH`], so a program that would
-    /// overflow the stack when rendered is rejected instead.
+    /// Nesting depth is not limited: validation, [`render`](crate::ir::render)
+    /// and [`Program::span_of`] are all iterative, so a deeply nested program
+    /// cannot overflow the stack.
     pub fn validate(&self) -> Result<(), IrError> {
         if self.schema_version != SCHEMA_VERSION {
             return Err(IrError::UnsupportedSchemaVersion {
@@ -253,29 +221,6 @@ impl Program {
                 &mut observed_blocks,
             )?;
         }
-        self.check_depth()
-    }
-
-    /// Reject a program whose nesting exceeds [`MAX_DEPTH`].
-    ///
-    /// Computed iteratively, in instruction order, so that checking a deep
-    /// program cannot itself overflow the stack. Relies on `check_block` having
-    /// already rejected forward and dangling references, which is what makes a
-    /// single forward pass sufficient.
-    fn check_depth(&self) -> Result<(), IrError> {
-        // A comparison block cannot contain `Observe` — the tier check forbids
-        // it — so comparison-block depths are self-contained and can be computed
-        // before `main`, which is the only block that references them.
-        let mut block_depths: HashMap<BlockId, u32> = HashMap::new();
-        for b in &self.blocks {
-            let depths = depths_within(b, &block_depths)?;
-            let depth = match b.terminator().map(|t| &t.op) {
-                Some(Op::Yield { value }) => depths.get(value).copied().unwrap_or(0),
-                _ => 0,
-            };
-            block_depths.insert(b.id, depth);
-        }
-        depths_within(&self.main, &block_depths)?;
         Ok(())
     }
 
@@ -450,52 +395,6 @@ impl Program {
         }
         Ok(())
     }
-}
-
-/// The nesting depth each instruction in `b` reaches, i.e. how many nested
-/// rendering steps it takes to write that instruction's value out.
-///
-/// The count mirrors [`render`](crate::ir::render)'s recursion: `Load` and
-/// `Compare` are leaves, because a `Compare` reads its path from the named
-/// `Load` without descending into it; a combinator or qualifier adds one level to
-/// the deepest of its operands; `Observe` adds one level to the depth of the
-/// block it names, taken from `block_depths`; and the terminators add nothing,
-/// since rendering starts at the value they name.
-///
-/// Errors as soon as any instruction exceeds [`MAX_DEPTH`], so the returned
-/// depths are always within bounds. Operands that name no known value count as
-/// zero — `check_block` has already rejected those.
-fn depths_within(
-    b: &Block,
-    block_depths: &HashMap<BlockId, u32>,
-) -> Result<HashMap<InstrId, u32>, IrError> {
-    let mut depths: HashMap<InstrId, u32> = HashMap::with_capacity(b.instructions.len());
-    for instr in &b.instructions {
-        let of = |id: &InstrId| depths.get(id).copied().unwrap_or(0);
-        let depth = match &instr.op {
-            Op::Load { .. } | Op::Compare { .. } => 1,
-            Op::Observe { block } => block_depths
-                .get(block)
-                .copied()
-                .unwrap_or(0)
-                .saturating_add(1),
-            Op::And { lhs, rhs } | Op::Or { lhs, rhs } | Op::FollowedBy { lhs, rhs } => {
-                of(lhs).max(of(rhs)).saturating_add(1)
-            }
-            Op::Within { input, .. } | Op::Repeats { input, .. } | Op::StartStop { input, .. } => {
-                of(input).saturating_add(1)
-            }
-            Op::Yield { value } | Op::Ret { value } => of(value),
-        };
-        if depth > MAX_DEPTH {
-            return Err(IrError::TooDeep {
-                depth,
-                max: MAX_DEPTH,
-            });
-        }
-        depths.insert(instr.id, depth);
-    }
-    Ok(depths)
 }
 
 #[cfg(test)]
@@ -719,9 +618,6 @@ mod tests {
     }
 
     /// A program whose `main` block chains `levels` qualifiers onto one observation.
-    ///
-    /// Depth is `levels + 2`: the observation block's compare is one level and the
-    /// `observe` that names it is another.
     fn qualifier_chain(levels: u32) -> Program {
         let mut p = valid();
         let observe = p.main.instructions[0].clone();
@@ -751,21 +647,24 @@ mod tests {
     }
 
     #[test]
-    fn rejects_a_program_nested_past_max_depth() {
-        let p = qualifier_chain(MAX_DEPTH - 1);
-        assert_eq!(
-            p.validate(),
-            Err(IrError::TooDeep {
-                depth: MAX_DEPTH + 1,
-                max: MAX_DEPTH,
-            })
-        );
+    fn accepts_a_program_nested_past_the_old_depth_limit() {
+        // 257 levels deep: one past the 256-level limit removed by issue #32.
+        let p = qualifier_chain(255);
+        assert_eq!(p.validate(), Ok(()));
     }
 
     #[test]
-    fn accepts_a_program_nested_exactly_to_max_depth() {
-        let p = qualifier_chain(MAX_DEPTH - 2);
-        assert_eq!(p.validate(), Ok(()), "depth {MAX_DEPTH} should be allowed");
+    fn accepts_a_very_deeply_nested_program_on_a_small_stack() {
+        // Validation is iterative, so depth costs nothing on the stack.
+        std::thread::Builder::new()
+            .stack_size(256 * 1024)
+            .spawn(|| {
+                let p = qualifier_chain(10_000);
+                assert_eq!(p.validate(), Ok(()));
+            })
+            .expect("spawn test thread")
+            .join()
+            .expect("test thread panicked");
     }
 
     #[test]
