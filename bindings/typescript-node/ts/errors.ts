@@ -25,6 +25,7 @@ const CODE_RE = /^\[(parse|model|match|validation)\]\s?/;
 
 /** Map a raw error (message "[code] msg") to the matching StixError subclass. */
 export function toStixError(err: unknown): StixError {
+  if (err instanceof StixError) return err;
   const raw = err instanceof Error ? err.message : String(err);
   const m = CODE_RE.exec(raw);
   const message = m ? raw.replace(CODE_RE, "") : raw;

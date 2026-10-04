@@ -2,9 +2,24 @@
 //!
 //! Errors are thrown as `"[code] message"`; the TypeScript wrapper maps the code
 //! prefix onto the StixError subclass hierarchy.
+//!
+//! # Handles
+//!
+//! Native objects cross the boundary as napi `External` values, never as
+//! `#[napi]` classes. napi-rs 2.x class unwrapping (`FromNapiRef`) calls
+//! `napi_unwrap` and casts the pointer to the requested type without checking
+//! it, so passing a wrapped object of one class where another was expected
+//! reinterpreted memory and crashed the process. An `External<T>` stores the
+//! Rust `TypeId` of `T` next to the value and napi-rs compares it on every
+//! unwrap, so a handle of the wrong type is an ordinary error here. Every
+//! handle argument goes through [`handle`], which also maps any mismatch to a
+//! `[validation]` error.
 #![deny(clippy::all)]
 
 use napi::bindgen_prelude::*;
+#[allow(deprecated)]
+use napi::JsExternal;
+use napi::JsUnknown;
 use napi_derive::napi;
 
 fn map_err(e: stix_ffi::FfiError) -> Error {
@@ -35,98 +50,111 @@ fn json_err(e: serde_json::Error) -> Error {
     Error::from_reason(format!("[model] {e}"))
 }
 
-#[napi]
-pub struct Pattern {
-    inner: stix_ffi::Pattern,
+/// Recover a `&T` from a JS value that must be an `External<T>` created by this
+/// addon. Non-externals and externals holding another type are rejected with a
+/// `[validation]` error naming the expected handle.
+///
+/// `JsExternal` / `Env::get_value_external` are deprecated in napi 2.16 in
+/// favour of `External<T>`, but taking `External<T>` as a parameter type lets
+/// the generated glue throw its own (code-less) error, and converting a
+/// `JsUnknown` to `External<T>` by hand needs `unsafe`. This safe pair performs
+/// the same value-type and TypeId checks.
+#[allow(deprecated)]
+fn handle<'env, T: 'static>(env: &'env Env, value: JsUnknown, what: &str) -> Result<&'env T> {
+    let invalid = || Error::from_reason(format!("[validation] expected a handle of type {what}"));
+    let external = JsExternal::try_from(value).map_err(|_| invalid())?;
+    // `get_value_external` checks the stored TypeId against `T` before casting.
+    // It hands out `&mut T`; we downgrade to `&T` at once. No entry point
+    // requests the same `T` twice, so no two references alias one value.
+    env.get_value_external::<T>(&external)
+        .map(|r| &*r)
+        .map_err(|_| invalid())
+}
+
+/// The outcome of a match, returned as a plain JS object.
+#[napi(object)]
+pub struct MatchOutcome {
+    pub matched: bool,
+    pub observations: Vec<u32>,
+}
+
+#[napi(ts_return_type = "ExternalObject<'Engine'>")]
+pub fn create_engine() -> External<stix_ffi::Engine> {
+    External::new(stix_ffi::Engine::new())
+}
+
+#[napi(ts_return_type = "ExternalObject<'Pattern'>")]
+pub fn parse_pattern(
+    env: Env,
+    #[napi(ts_arg_type = "ExternalObject<'Engine'>")] engine: JsUnknown,
+    src: String,
+) -> Result<External<stix_ffi::Pattern>> {
+    let engine = handle::<stix_ffi::Engine>(&env, engine, "Engine")?;
+    engine
+        .parse_pattern(&src)
+        .map(External::new)
+        .map_err(map_err)
+}
+
+#[napi(ts_return_type = "ExternalObject<'Bundle'>")]
+pub fn parse_bundle(
+    env: Env,
+    #[napi(ts_arg_type = "ExternalObject<'Engine'>")] engine: JsUnknown,
+    json: String,
+) -> Result<External<stix_ffi::Bundle>> {
+    let engine = handle::<stix_ffi::Engine>(&env, engine, "Engine")?;
+    engine
+        .parse_bundle(&json)
+        .map(External::new)
+        .map_err(map_err)
 }
 
 #[napi]
-impl Pattern {
-    #[napi(getter)]
-    pub fn ast(&self) -> Result<serde_json::Value> {
-        parse_ast_json(&self.inner.to_json()).map_err(json_err)
-    }
+pub fn match_bundle(
+    env: Env,
+    #[napi(ts_arg_type = "ExternalObject<'Engine'>")] engine: JsUnknown,
+    #[napi(ts_arg_type = "ExternalObject<'Pattern'>")] pattern: JsUnknown,
+    #[napi(ts_arg_type = "ExternalObject<'Bundle'>")] bundle: JsUnknown,
+) -> Result<MatchOutcome> {
+    let engine = handle::<stix_ffi::Engine>(&env, engine, "Engine")?;
+    let pattern = handle::<stix_ffi::Pattern>(&env, pattern, "Pattern")?;
+    let bundle = handle::<stix_ffi::Bundle>(&env, bundle, "Bundle")?;
+    engine
+        .match_bundle(pattern, bundle)
+        .map(|o| MatchOutcome {
+            matched: o.matched,
+            observations: o.observations.iter().map(|&i| i as u32).collect(),
+        })
+        .map_err(map_err)
 }
 
 #[napi]
-pub struct Bundle {
-    inner: stix_ffi::Bundle,
+pub fn pattern_ast(
+    env: Env,
+    #[napi(ts_arg_type = "ExternalObject<'Pattern'>")] pattern: JsUnknown,
+) -> Result<serde_json::Value> {
+    let pattern = handle::<stix_ffi::Pattern>(&env, pattern, "Pattern")?;
+    parse_ast_json(&pattern.to_json()).map_err(json_err)
 }
 
 #[napi]
-impl Bundle {
-    #[napi]
-    pub fn object_count(&self) -> u32 {
-        self.inner.object_count() as u32
-    }
-
-    #[napi]
-    pub fn object(&self, index: u32) -> Result<Option<serde_json::Value>> {
-        match self.inner.object_json(index as usize) {
-            Some(json) => Ok(Some(serde_json::from_str(&json).map_err(json_err)?)),
-            None => Ok(None),
-        }
-    }
+pub fn bundle_object_count(
+    env: Env,
+    #[napi(ts_arg_type = "ExternalObject<'Bundle'>")] bundle: JsUnknown,
+) -> Result<u32> {
+    let bundle = handle::<stix_ffi::Bundle>(&env, bundle, "Bundle")?;
+    Ok(bundle.object_count() as u32)
 }
 
 #[napi]
-pub struct MatchResult {
-    inner_matched: bool,
-    inner_observations: Vec<u32>,
-}
-
-#[napi]
-impl MatchResult {
-    #[napi(getter)]
-    pub fn matched(&self) -> bool {
-        self.inner_matched
-    }
-
-    #[napi(getter)]
-    pub fn observations(&self) -> Vec<u32> {
-        self.inner_observations.clone()
-    }
-}
-
-#[napi]
-pub struct Engine {
-    inner: stix_ffi::Engine,
-}
-
-#[napi]
-impl Engine {
-    #[napi(constructor)]
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Engine {
-            inner: stix_ffi::Engine::new(),
-        }
-    }
-
-    #[napi]
-    pub fn parse_pattern(&self, src: String) -> Result<Pattern> {
-        self.inner
-            .parse_pattern(&src)
-            .map(|inner| Pattern { inner })
-            .map_err(map_err)
-    }
-
-    #[napi]
-    pub fn parse_bundle(&self, json: String) -> Result<Bundle> {
-        self.inner
-            .parse_bundle(&json)
-            .map(|inner| Bundle { inner })
-            .map_err(map_err)
-    }
-
-    #[napi]
-    pub fn match_bundle(&self, pattern: &Pattern, bundle: &Bundle) -> Result<MatchResult> {
-        self.inner
-            .match_bundle(&pattern.inner, &bundle.inner)
-            .map(|o| MatchResult {
-                inner_matched: o.matched,
-                inner_observations: o.observations.iter().map(|&i| i as u32).collect(),
-            })
-            .map_err(map_err)
+pub fn bundle_object(
+    env: Env,
+    #[napi(ts_arg_type = "ExternalObject<'Bundle'>")] bundle: JsUnknown,
+    index: u32,
+) -> Result<Option<serde_json::Value>> {
+    let bundle = handle::<stix_ffi::Bundle>(&env, bundle, "Bundle")?;
+    match bundle.object_json(index as usize) {
+        Some(json) => Ok(Some(serde_json::from_str(&json).map_err(json_err)?)),
+        None => Ok(None),
     }
 }
