@@ -13,6 +13,24 @@ pub struct Pattern {
 
 /// Observation-level expression tree.
 /// `FOLLOWEDBY`/`AND`/`OR` combine observations; qualifiers attach to a sub-expression.
+///
+/// # Chain nodes
+///
+/// `And`, `Or` and `FollowedBy` are n-ary: a chain such as `a OR b OR c` is a
+/// single node holding every operand in source order, so the tree's depth does
+/// not grow with the length of a chain. Nodes produced by [`parse`](crate::parse)
+/// uphold two invariants:
+///
+/// - the operand list has **at least two** elements;
+/// - the **first** operand is never a node of the same operator. Left-nested
+///   chains are flattened (`(a OR b) OR c` and `a OR b OR c` are both
+///   `Or([a, b, c])`), while a right-nested group keeps its own node
+///   (`a OR (b OR c)` is `Or([a, Or([b, c])])`).
+///
+/// A chain `Op([a, b, c])` means the left-associative `(a op b) op c`.
+///
+/// In JSON a two-operand chain serializes as `{"Or": [l, r]}`, and longer
+/// chains as longer arrays.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ObservationExpression {
     /// A single `[ comparisonExpr ]` observation.
@@ -22,12 +40,13 @@ pub enum ObservationExpression {
         /// Byte range of the whole `[...]` including the brackets.
         span: Span,
     },
-    /// `AND` of two observation expressions.
-    And(Box<ObservationExpression>, Box<ObservationExpression>),
-    /// `OR` of two observation expressions.
-    Or(Box<ObservationExpression>, Box<ObservationExpression>),
-    /// `FOLLOWEDBY`: the left expression's observations precede the right's.
-    FollowedBy(Box<ObservationExpression>, Box<ObservationExpression>),
+    /// `AND` of two or more observation expressions (see [chain nodes](Self#chain-nodes)).
+    And(Vec<ObservationExpression>),
+    /// `OR` of two or more observation expressions (see [chain nodes](Self#chain-nodes)).
+    Or(Vec<ObservationExpression>),
+    /// `FOLLOWEDBY` of two or more observation expressions: each operand's
+    /// observations precede the next's (see [chain nodes](Self#chain-nodes)).
+    FollowedBy(Vec<ObservationExpression>),
     /// A sub-expression with a postfix [`Qualifier`] attached.
     Qualified {
         /// The qualified sub-expression.
@@ -62,14 +81,18 @@ pub enum Qualifier {
 }
 
 /// Comparison-level expression tree (inside `[ ]`).
+///
+/// `And` and `Or` are n-ary chain nodes with the same invariants as
+/// [`ObservationExpression`]'s: at least two operands, and the first operand is
+/// never a node of the same operator.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ComparisonExpression {
     /// A single property test.
     Test(Comparison),
-    /// `AND` of two comparison expressions.
-    And(Box<ComparisonExpression>, Box<ComparisonExpression>),
-    /// `OR` of two comparison expressions.
-    Or(Box<ComparisonExpression>, Box<ComparisonExpression>),
+    /// `AND` of two or more comparison expressions.
+    And(Vec<ComparisonExpression>),
+    /// `OR` of two or more comparison expressions.
+    Or(Vec<ComparisonExpression>),
 }
 
 /// A single property test.
@@ -177,65 +200,46 @@ impl Pattern {
     /// a source string compare equal after this normalization. Used to state
     /// structural equality independent of byte offsets.
     pub fn without_spans(&self) -> Pattern {
-        Pattern {
-            expression: strip_observation_spans(&self.expression),
+        let mut pattern = self.clone();
+        zero_observation_spans(&mut pattern.expression);
+        pattern
+    }
+}
+
+// The span-zeroing walks use an explicit stack, so neither nesting depth nor
+// chain length costs them any call stack.
+
+fn zero_observation_spans(root: &mut ObservationExpression) {
+    use ObservationExpression as O;
+    let mut pending = vec![root];
+    while let Some(e) = pending.pop() {
+        match e {
+            O::Observation { expression, span } => {
+                *span = ZERO_SPAN;
+                zero_comparison_spans(expression);
+            }
+            O::And(xs) | O::Or(xs) | O::FollowedBy(xs) => pending.extend(xs.iter_mut()),
+            O::Qualified {
+                expression, span, ..
+            } => {
+                *span = ZERO_SPAN;
+                pending.push(expression);
+            }
         }
     }
 }
 
-fn strip_observation_spans(e: &ObservationExpression) -> ObservationExpression {
-    use ObservationExpression as O;
-    match e {
-        O::Observation { expression, .. } => O::Observation {
-            expression: Box::new(strip_comparison_spans(expression)),
-            span: ZERO_SPAN,
-        },
-        O::And(l, r) => O::And(
-            Box::new(strip_observation_spans(l)),
-            Box::new(strip_observation_spans(r)),
-        ),
-        O::Or(l, r) => O::Or(
-            Box::new(strip_observation_spans(l)),
-            Box::new(strip_observation_spans(r)),
-        ),
-        O::FollowedBy(l, r) => O::FollowedBy(
-            Box::new(strip_observation_spans(l)),
-            Box::new(strip_observation_spans(r)),
-        ),
-        O::Qualified {
-            expression,
-            qualifier,
-            ..
-        } => O::Qualified {
-            expression: Box::new(strip_observation_spans(expression)),
-            qualifier: qualifier.clone(),
-            span: ZERO_SPAN,
-        },
-    }
-}
-
-fn strip_comparison_spans(e: &ComparisonExpression) -> ComparisonExpression {
+fn zero_comparison_spans(root: &mut ComparisonExpression) {
     use ComparisonExpression as C;
-    match e {
-        C::Test(c) => C::Test(Comparison {
-            path: ObjectPath {
-                object_type: c.path.object_type.clone(),
-                steps: c.path.steps.clone(),
-                span: ZERO_SPAN,
-            },
-            operator: c.operator,
-            negated: c.negated,
-            value: c.value.clone(),
-            span: ZERO_SPAN,
-        }),
-        C::And(l, r) => C::And(
-            Box::new(strip_comparison_spans(l)),
-            Box::new(strip_comparison_spans(r)),
-        ),
-        C::Or(l, r) => C::Or(
-            Box::new(strip_comparison_spans(l)),
-            Box::new(strip_comparison_spans(r)),
-        ),
+    let mut pending = vec![root];
+    while let Some(e) = pending.pop() {
+        match e {
+            C::Test(c) => {
+                c.span = ZERO_SPAN;
+                c.path.span = ZERO_SPAN;
+            }
+            C::And(xs) | C::Or(xs) => pending.extend(xs.iter_mut()),
+        }
     }
 }
 
@@ -267,6 +271,48 @@ mod tests {
             ObservationExpression::Observation { .. } => {}
             _ => panic!("expected observation"),
         }
+    }
+
+    fn obs(value: &str) -> ObservationExpression {
+        ObservationExpression::Observation {
+            expression: Box::new(ComparisonExpression::Test(Comparison {
+                path: ObjectPath {
+                    object_type: "x".to_string(),
+                    steps: vec![PathStep::Key("v".to_string())],
+                    span: Span::default(),
+                },
+                operator: ComparisonOperator::Equal,
+                negated: false,
+                value: ComparisonOperand::Literal(Literal::String(value.to_string())),
+                span: Span::default(),
+            })),
+            span: Span::default(),
+        }
+    }
+
+    /// The JSON of a two-operand chain is exactly what the old binary
+    /// `Or(Box, Box)` produced; longer chains are longer arrays.
+    #[test]
+    fn chain_json_shape_is_pinned() {
+        let leaf = |v: &str| serde_json::to_string(&obs(v)).unwrap();
+        let two = ObservationExpression::Or(vec![obs("a"), obs("b")]);
+        assert_eq!(
+            serde_json::to_string(&two).unwrap(),
+            format!("{{\"Or\":[{},{}]}}", leaf("a"), leaf("b"))
+        );
+        let three = ObservationExpression::FollowedBy(vec![obs("a"), obs("b"), obs("c")]);
+        assert_eq!(
+            serde_json::to_string(&three).unwrap(),
+            format!(
+                "{{\"FollowedBy\":[{},{},{}]}}",
+                leaf("a"),
+                leaf("b"),
+                leaf("c")
+            )
+        );
+        let back: ObservationExpression =
+            serde_json::from_str(&serde_json::to_string(&three).unwrap()).unwrap();
+        assert_eq!(back, three);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 //! Evaluation: leaf comparisons, comparison expressions, and observation expressions.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use stix_model::{ObjectStore, ObjectView, StixValue};
 use stix_pattern::ast::{
@@ -97,71 +97,89 @@ pub fn eval_comparison_expression(
     store: Option<&ObjectStore>,
 ) -> bool {
     // Distinct object types referenced anywhere in the expression.
-    let mut types: Vec<String> = Vec::new();
-    collect_types(expr, &mut types);
+    let mut types: Vec<&str> = Vec::new();
+    collect_types(expr, &mut types, &mut BTreeSet::new());
 
     // Candidate objects per referenced type (indices into observation.objects).
-    let candidates: Vec<Vec<usize>> = types
-        .iter()
+    // A type with no candidate stays unbound, so its leaves evaluate to false;
+    // only the types that do have candidates take part in the enumeration.
+    let bound: Vec<(&str, Vec<usize>)> = types
+        .into_iter()
         .map(|t| {
-            observation
+            let candidates: Vec<usize> = observation
                 .objects
                 .iter()
                 .enumerate()
-                .filter(|(_, o)| o.type_() == Some(t.as_str()))
+                .filter(|(_, o)| o.type_() == Some(t))
                 .map(|(i, _)| i)
-                .collect()
+                .collect();
+            (t, candidates)
         })
+        .filter(|(_, candidates)| !candidates.is_empty())
         .collect();
 
-    // Enumerate one choice per type (or `None` when a type has no candidate).
-    let mut binding: BTreeMap<String, usize> = BTreeMap::new();
-    enumerate_bindings(&types, &candidates, 0, &mut binding, &|binding| {
+    enumerate_bindings(&bound, |binding| {
         eval_tree(expr, observation, binding, store)
     })
 }
 
-/// Recursively collect distinct object types referenced by an expression's leaves.
-fn collect_types(expr: &ComparisonExpression, out: &mut Vec<String>) {
+/// Collect the distinct object types referenced by an expression's leaves, in
+/// first-seen order. Recurses over nesting depth only (bounded by the parser);
+/// chain operands are iterated.
+fn collect_types<'e>(
+    expr: &'e ComparisonExpression,
+    out: &mut Vec<&'e str>,
+    seen: &mut BTreeSet<&'e str>,
+) {
     match expr {
         ComparisonExpression::Test(c) => {
-            if !out.contains(&c.path.object_type) {
-                out.push(c.path.object_type.clone());
+            if seen.insert(&c.path.object_type) {
+                out.push(&c.path.object_type);
             }
         }
-        ComparisonExpression::And(a, b) | ComparisonExpression::Or(a, b) => {
-            collect_types(a, out);
-            collect_types(b, out);
+        ComparisonExpression::And(xs) | ComparisonExpression::Or(xs) => {
+            for x in xs {
+                collect_types(x, out, seen);
+            }
         }
     }
 }
 
 /// Try every assignment of one candidate object per type; return true as soon as
-/// `predicate` accepts a binding. Types with no candidates are simply absent from
-/// the binding map (their leaves evaluate to false).
+/// `predicate` accepts a binding. Every type in `bound` has at least one
+/// candidate. Iterates like an odometer (the last type varies fastest), so the
+/// number of types costs no stack.
 fn enumerate_bindings(
-    types: &[String],
-    candidates: &[Vec<usize>],
-    idx: usize,
-    binding: &mut BTreeMap<String, usize>,
-    predicate: &dyn Fn(&BTreeMap<String, usize>) -> bool,
+    bound: &[(&str, Vec<usize>)],
+    predicate: impl Fn(&BTreeMap<String, usize>) -> bool,
 ) -> bool {
-    if idx == types.len() {
-        return predicate(binding);
-    }
-    if candidates[idx].is_empty() {
-        // No object of this type; leave it unbound and continue.
-        return enumerate_bindings(types, candidates, idx + 1, binding, predicate);
-    }
-    for &obj_idx in &candidates[idx] {
-        binding.insert(types[idx].clone(), obj_idx);
-        if enumerate_bindings(types, candidates, idx + 1, binding, predicate) {
-            binding.remove(&types[idx]);
+    let mut choice = vec![0usize; bound.len()];
+    let mut binding: BTreeMap<String, usize> = bound
+        .iter()
+        .map(|(t, candidates)| (t.to_string(), candidates[0]))
+        .collect();
+    loop {
+        if predicate(&binding) {
             return true;
         }
+        // Advance to the next assignment, or stop after the last one.
+        let mut i = bound.len();
+        loop {
+            if i == 0 {
+                return false;
+            }
+            i -= 1;
+            let (t, candidates) = &bound[i];
+            choice[i] += 1;
+            if choice[i] == candidates.len() {
+                choice[i] = 0;
+            }
+            binding.insert(t.to_string(), candidates[choice[i]]);
+            if choice[i] != 0 {
+                break;
+            }
+        }
     }
-    binding.remove(&types[idx]);
-    false
 }
 
 /// Evaluate the boolean tree under a fixed binding.
@@ -176,11 +194,13 @@ fn eval_tree(
             Some(&obj_idx) => eval_comparison(&observation.objects[obj_idx], c, store),
             None => false,
         },
-        ComparisonExpression::And(a, b) => {
-            eval_tree(a, observation, binding, store) && eval_tree(b, observation, binding, store)
+        // A chain is the left-associative `(a && b) && c`: short-circuiting
+        // left to right, exactly as `all`/`any` do.
+        ComparisonExpression::And(xs) => {
+            xs.iter().all(|x| eval_tree(x, observation, binding, store))
         }
-        ComparisonExpression::Or(a, b) => {
-            eval_tree(a, observation, binding, store) || eval_tree(b, observation, binding, store)
+        ComparisonExpression::Or(xs) => {
+            xs.iter().any(|x| eval_tree(x, observation, binding, store))
         }
     }
 }
@@ -229,17 +249,24 @@ fn eval_observation_expression(
             }
             Ok(any)
         }
-        ObservationExpression::And(a, b) => {
-            let left = eval_observation_expression(a, observations, store, matched)?;
-            let right = eval_observation_expression(b, observations, store, matched)?;
-            Ok(left && right)
+        // Chains are the left-associative binary form, which evaluates every
+        // operand in order (no short-circuit, so each operand's matching
+        // observations are recorded) and stops at the first error.
+        ObservationExpression::And(xs) => {
+            let mut all = true;
+            for x in xs {
+                all &= eval_observation_expression(x, observations, store, matched)?;
+            }
+            Ok(all)
         }
-        ObservationExpression::Or(a, b) => {
-            let left = eval_observation_expression(a, observations, store, matched)?;
-            let right = eval_observation_expression(b, observations, store, matched)?;
-            Ok(left || right)
+        ObservationExpression::Or(xs) => {
+            let mut any = false;
+            for x in xs {
+                any |= eval_observation_expression(x, observations, store, matched)?;
+            }
+            Ok(any)
         }
-        ObservationExpression::FollowedBy(_, _) => Err(MatchError::Unsupported(
+        ObservationExpression::FollowedBy(_) => Err(MatchError::Unsupported(
             "FOLLOWEDBY sequencing is not yet implemented".to_string(),
         )),
         ObservationExpression::Qualified { .. } => Err(MatchError::Unsupported(
@@ -406,22 +433,22 @@ mod tests {
             serde_json::json!({"type": "file", "id": "file--1", "name": "evil.exe", "size": 99}),
             serde_json::json!({"type": "file", "id": "file--2", "name": "ok.txt", "size": 10}),
         ]);
-        let expr = ComparisonExpression::And(
-            Box::new(test_expr(cmp(
+        let expr = ComparisonExpression::And(vec![
+            test_expr(cmp(
                 "file",
                 "name",
                 ComparisonOperator::Equal,
                 false,
                 lit("evil.exe"),
-            ))),
-            Box::new(test_expr(cmp(
+            )),
+            test_expr(cmp(
                 "file",
                 "size",
                 ComparisonOperator::Equal,
                 false,
                 ComparisonOperand::Literal(Literal::Integer(10)),
-            ))),
-        );
+            )),
+        ]);
         assert!(eval_comparison_expression(&expr, &matching, None));
         // No single file is both name=evil.exe AND size=10, so this must not match.
         assert!(!eval_comparison_expression(&expr, &split, None));
@@ -432,23 +459,135 @@ mod tests {
         let o = observation(vec![
             serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.2.3.4"}),
         ]);
-        let expr = ComparisonExpression::Or(
-            Box::new(test_expr(cmp(
+        let expr = ComparisonExpression::Or(vec![
+            test_expr(cmp(
                 "ipv4-addr",
                 "value",
                 ComparisonOperator::Equal,
                 false,
                 lit("9.9.9.9"),
-            ))),
-            Box::new(test_expr(cmp(
+            )),
+            test_expr(cmp(
                 "ipv4-addr",
                 "value",
                 ComparisonOperator::Equal,
                 false,
                 lit("1.2.3.4"),
-            ))),
-        );
+            )),
+        ]);
         assert!(eval_comparison_expression(&expr, &o, None));
+    }
+
+    fn eq_test(object_type: &str, value: &str) -> ComparisonExpression {
+        test_expr(cmp(
+            object_type,
+            "value",
+            ComparisonOperator::Equal,
+            false,
+            lit(value),
+        ))
+    }
+
+    /// An n-ary chain evaluates exactly as the left-associative binary chain
+    /// it stands for. The nested form below breaks the parser's flattening
+    /// invariant on purpose, to serve as the reference.
+    #[test]
+    fn comparison_chains_match_their_left_assoc_binary_form() {
+        let o = observation(vec![
+            serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.2.3.4"}),
+            serde_json::json!({"type": "domain-name", "id": "domain-name--1", "value": "a.example"}),
+        ]);
+        let leaves = [
+            eq_test("ipv4-addr", "1.2.3.4"),
+            eq_test("ipv4-addr", "9.9.9.9"),
+            eq_test("domain-name", "a.example"),
+            eq_test("url", "absent"),
+        ];
+        for a in &leaves {
+            for b in &leaves {
+                for c in &leaves {
+                    type Build = fn(Vec<ComparisonExpression>) -> ComparisonExpression;
+                    for build in [ComparisonExpression::And as Build, ComparisonExpression::Or] {
+                        let chain = build(vec![a.clone(), b.clone(), c.clone()]);
+                        let nested = build(vec![build(vec![a.clone(), b.clone()]), c.clone()]);
+                        assert_eq!(
+                            eval_comparison_expression(&chain, &o, None),
+                            eval_comparison_expression(&nested, &o, None),
+                            "{chain:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn many_distinct_types_in_one_chain() {
+        // Types absent from the observation are left unbound; a long chain of
+        // them must neither recurse per type nor change the result.
+        let o = observation(vec![
+            serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.2.3.4"}),
+        ]);
+        let mut xs: Vec<ComparisonExpression> = (0..10_000)
+            .map(|i| eq_test(&format!("type-{i}"), "x"))
+            .collect();
+        assert!(!eval_comparison_expression(
+            &ComparisonExpression::Or(xs.clone()),
+            &o,
+            None
+        ));
+        xs.push(eq_test("ipv4-addr", "1.2.3.4"));
+        assert!(eval_comparison_expression(
+            &ComparisonExpression::Or(xs),
+            &o,
+            None
+        ));
+    }
+
+    #[test]
+    fn observation_chains_match_their_left_assoc_binary_form() {
+        let observations = vec![
+            observation(vec![
+                serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--1", "value": "1.1.1.1"}),
+            ]),
+            observation(vec![
+                serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--2", "value": "2.2.2.2"}),
+            ]),
+            observation(vec![
+                serde_json::json!({"type": "ipv4-addr", "id": "ipv4-addr--3", "value": "3.3.3.3"}),
+            ]),
+        ];
+        let leaf = |v: &str| ObservationExpression::Observation {
+            expression: Box::new(eq_test("ipv4-addr", v)),
+            span: Default::default(),
+        };
+        let leaves = [leaf("1.1.1.1"), leaf("3.3.3.3"), leaf("9.9.9.9")];
+        let run = |e: ObservationExpression| {
+            eval_pattern(&Pattern { expression: e }, &observations, None).unwrap()
+        };
+        for a in &leaves {
+            for b in &leaves {
+                for c in &leaves {
+                    type Build = fn(Vec<ObservationExpression>) -> ObservationExpression;
+                    for build in [
+                        ObservationExpression::And as Build,
+                        ObservationExpression::Or,
+                    ] {
+                        let chain = build(vec![a.clone(), b.clone(), c.clone()]);
+                        let nested = build(vec![build(vec![a.clone(), b.clone()]), c.clone()]);
+                        // Same verdict and the same matched observations.
+                        assert_eq!(run(chain.clone()), run(nested), "{chain:?}");
+                    }
+                }
+            }
+        }
+        // OR reports the observations of every operand that matched.
+        let r = run(ObservationExpression::Or(vec![
+            leaf("1.1.1.1"),
+            leaf("9.9.9.9"),
+            leaf("3.3.3.3"),
+        ]));
+        assert_eq!(r.observations(), &[0, 2]);
     }
 
     use stix_pattern::parse;

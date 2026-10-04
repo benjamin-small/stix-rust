@@ -13,6 +13,14 @@ use crate::ir::{
 ///
 /// This is total: every well-formed [`Pattern`] lowers, and the result always
 /// satisfies [`Program::validate`](crate::ir::Program::validate).
+///
+/// Each n-ary chain node becomes the left-associative chain of binary
+/// operations it stands for, so `a OR b OR c` lowers to `Or(Or(a, b), c)`.
+///
+/// # Panics
+///
+/// If a chain node has no operands. [`parse`](crate::parse) never produces
+/// one; only a hand-built or deserialized [`Pattern`] can.
 pub fn lower(pattern: &Pattern) -> Program {
     let mut l = Lowerer {
         next_instr: 0,
@@ -31,6 +39,24 @@ pub fn lower(pattern: &Pattern) -> Program {
             kind: BlockKind::Main,
             instructions: main_instrs,
         },
+    }
+}
+
+/// An AST node that lowers to a single value: lets [`Lowerer::lower_chain`]
+/// serve both the observation and the comparison level.
+trait Lowerable {
+    fn lower_into(&self, l: &mut Lowerer, into: &mut Vec<Instruction>) -> InstrId;
+}
+
+impl Lowerable for ObservationExpression {
+    fn lower_into(&self, l: &mut Lowerer, into: &mut Vec<Instruction>) -> InstrId {
+        l.lower_observation(self, into)
+    }
+}
+
+impl Lowerable for ComparisonExpression {
+    fn lower_into(&self, l: &mut Lowerer, into: &mut Vec<Instruction>) -> InstrId {
+        l.lower_comparison(self, into)
     }
 }
 
@@ -65,20 +91,14 @@ impl Lowerer {
                 let block = self.lower_comparison_block(expression);
                 self.push(into, Op::Observe { block }, Some(*span))
             }
-            ObservationExpression::And(l, r) => {
-                let lhs = self.lower_observation(l, into);
-                let rhs = self.lower_observation(r, into);
-                self.push(into, Op::And { lhs, rhs }, None)
+            ObservationExpression::And(xs) => {
+                self.lower_chain(xs, into, |lhs, rhs| Op::And { lhs, rhs })
             }
-            ObservationExpression::Or(l, r) => {
-                let lhs = self.lower_observation(l, into);
-                let rhs = self.lower_observation(r, into);
-                self.push(into, Op::Or { lhs, rhs }, None)
+            ObservationExpression::Or(xs) => {
+                self.lower_chain(xs, into, |lhs, rhs| Op::Or { lhs, rhs })
             }
-            ObservationExpression::FollowedBy(l, r) => {
-                let lhs = self.lower_observation(l, into);
-                let rhs = self.lower_observation(r, into);
-                self.push(into, Op::FollowedBy { lhs, rhs }, None)
+            ObservationExpression::FollowedBy(xs) => {
+                self.lower_chain(xs, into, |lhs, rhs| Op::FollowedBy { lhs, rhs })
             }
             ObservationExpression::Qualified {
                 expression,
@@ -127,17 +147,34 @@ impl Lowerer {
     ) -> InstrId {
         match e {
             ComparisonExpression::Test(c) => self.lower_test(c, into),
-            ComparisonExpression::And(l, r) => {
-                let lhs = self.lower_comparison(l, into);
-                let rhs = self.lower_comparison(r, into);
-                self.push(into, Op::And { lhs, rhs }, None)
+            ComparisonExpression::And(xs) => {
+                self.lower_chain(xs, into, |lhs, rhs| Op::And { lhs, rhs })
             }
-            ComparisonExpression::Or(l, r) => {
-                let lhs = self.lower_comparison(l, into);
-                let rhs = self.lower_comparison(r, into);
-                self.push(into, Op::Or { lhs, rhs }, None)
+            ComparisonExpression::Or(xs) => {
+                self.lower_chain(xs, into, |lhs, rhs| Op::Or { lhs, rhs })
             }
         }
+    }
+
+    /// Lower an n-ary chain node as the left-associative binary chain it
+    /// stands for: `[a, b, c]` becomes `op(op(a, b), c)`, emitted in the same
+    /// order as the nested binary form would be. Iterates over the operands,
+    /// so chain length costs no stack.
+    fn lower_chain<E: Lowerable>(
+        &mut self,
+        operands: &[E],
+        into: &mut Vec<Instruction>,
+        op: fn(InstrId, InstrId) -> Op,
+    ) -> InstrId {
+        let (first, rest) = operands
+            .split_first()
+            .expect("chain nodes have at least two operands");
+        let mut acc = first.lower_into(self, into);
+        for operand in rest {
+            let rhs = operand.lower_into(self, into);
+            acc = self.push(into, op(acc, rhs), None);
+        }
+        acc
     }
 
     fn lower_test(&mut self, c: &Comparison, into: &mut Vec<Instruction>) -> InstrId {
@@ -255,6 +292,45 @@ mod tests {
         assert!(matches!(main_ops[1], Op::Observe { .. }));
         assert!(matches!(main_ops[2], Op::FollowedBy { .. }));
         assert!(matches!(main_ops[3], Op::Ret { .. }));
+    }
+
+    #[test]
+    fn chains_lower_to_left_associative_binary_ops() {
+        let p = parse("[x:v=1] OR [x:v=2] OR [x:v=3]").unwrap();
+        let prog = lower(&p);
+        let main = &prog.main.instructions;
+        let ops: Vec<&Op> = main.iter().map(|i| &i.op).collect();
+        assert!(matches!(ops[0], Op::Observe { .. }));
+        assert!(matches!(ops[1], Op::Observe { .. }));
+        assert_eq!(
+            *ops[2],
+            Op::Or {
+                lhs: main[0].id,
+                rhs: main[1].id
+            }
+        );
+        assert!(matches!(ops[3], Op::Observe { .. }));
+        assert_eq!(
+            *ops[4],
+            Op::Or {
+                lhs: main[2].id,
+                rhs: main[3].id
+            }
+        );
+        assert!(matches!(ops[5], Op::Ret { .. }));
+
+        // The same holds inside a comparison block.
+        let p = parse("[x:v=1 AND x:v=2 AND x:v=3]").unwrap();
+        let block = &lower(&p).blocks[0].instructions;
+        let ands: Vec<&Instruction> = block
+            .iter()
+            .filter(|i| matches!(i.op, Op::And { .. }))
+            .collect();
+        assert_eq!(ands.len(), 2);
+        let Op::And { lhs, .. } = ands[1].op else {
+            unreachable!()
+        };
+        assert_eq!(lhs, ands[0].id);
     }
 
     #[test]
