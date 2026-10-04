@@ -279,6 +279,10 @@ impl Program {
 
         // Values defined earlier in this block, in order.
         let mut defined: HashSet<InstrId> = HashSet::new();
+        // The subset of `defined` that are loads, for the `Compare` lhs check.
+        // Ids are unique by then (a duplicate returns earlier), so membership
+        // answers what looking the id up in the block would.
+        let mut loads: HashSet<InstrId> = HashSet::new();
         let last_index = b.instructions.len() - 1;
 
         for (index, instr) in b.instructions.iter().enumerate() {
@@ -357,7 +361,7 @@ impl Program {
                     rhs,
                 } => {
                     check_value(*lhs)?;
-                    if !matches!(b.instruction(*lhs).map(|i| &i.op), Some(Op::Load { .. })) {
+                    if !loads.contains(lhs) {
                         return Err(IrError::ExpectedLoad {
                             instr: instr.id.0,
                             lhs: lhs.0,
@@ -429,6 +433,9 @@ impl Program {
                 }
             }
 
+            if matches!(instr.op, Op::Load { .. }) {
+                loads.insert(instr.id);
+            }
             defined.insert(instr.id);
         }
         Ok(())
