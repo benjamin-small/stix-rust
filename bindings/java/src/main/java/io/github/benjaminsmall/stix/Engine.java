@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -13,15 +13,14 @@ import java.util.function.Function;
 /**
  * Parses patterns/bundles and runs matches. Register custom-type hooks here. Using a
  * closed engine throws {@link IllegalStateException}. Parsing and matching may be called
- * from several threads; registerType is not synchronized, so register hooks before
- * sharing the engine.
+ * from several threads, and registerType is thread-safe (hooks live in a concurrent map).
  */
 public final class Engine extends NativeHandle {
     static { NativeLoader.load(); }
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final Map<String, Function<Map<String, Object>, Map<String, Object>>> hooks =
-        new HashMap<>();
+        new ConcurrentHashMap<>();
 
     public Engine() {
         super("Engine", nativeNew(), Engine::nativeFree);
@@ -34,7 +33,7 @@ public final class Engine extends NativeHandle {
 
     /** @throws IllegalStateException if the engine is closed */
     public Bundle parseBundle(String json) {
-        useHandle(p -> null); // fail fast on a closed engine, before running hooks
+        checkOpen();
         String toNative = json;
         if (!hooks.isEmpty()) {
             toNative = applyHooks(json);
@@ -45,7 +44,7 @@ public final class Engine extends NativeHandle {
 
     /** @throws IllegalStateException if the engine, pattern or bundle is closed */
     public MatchResult matchBundle(Pattern pattern, Bundle bundle) {
-        useHandle(p -> null); // the engine must be open too
+        checkOpen();
         String json = Objects.requireNonNull(pattern, "pattern")
             .useHandle(pp -> Objects.requireNonNull(bundle, "bundle")
                 .useHandle(bp -> nativeMatchBundle(pp, bp)));
@@ -81,7 +80,7 @@ public final class Engine extends NativeHandle {
             for (int i = 0; i < arr.size(); i++) {
                 JsonNode obj = arr.get(i);
                 String type = obj.path("type").asText(null);
-                Function<Map<String, Object>, Map<String, Object>> hook = hooks.get(type);
+                Function<Map<String, Object>, Map<String, Object>> hook = type == null ? null : hooks.get(type);
                 if (hook != null) {
                     Map<String, Object> in = MAPPER.convertValue(obj, Map.class);
                     Map<String, Object> out;

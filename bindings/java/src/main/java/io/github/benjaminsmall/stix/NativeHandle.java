@@ -37,6 +37,14 @@ abstract class NativeHandle implements AutoCloseable {
         this.cleanable = CLEANER.register(this, () -> free.accept(ptr));
     }
 
+    /** Test seam: invoked inside the read lock, before the native call. No-op by default. */
+    volatile Runnable inReadLockHook = () -> { };
+
+    /** Throws IllegalStateException if the handle is closed. */
+    final void checkOpen() {
+        useHandle(p -> null);
+    }
+
     /** Runs {@code f} with the live native pointer; throws if the handle is closed. */
     final <T> T useHandle(LongFunction<T> f) {
         lock.readLock().lock();
@@ -44,6 +52,7 @@ abstract class NativeHandle implements AutoCloseable {
             if (closed) {
                 throw new IllegalStateException(kind + " is closed");
             }
+            inReadLockHook.run();
             return f.apply(ptr);
         } finally {
             lock.readLock().unlock();

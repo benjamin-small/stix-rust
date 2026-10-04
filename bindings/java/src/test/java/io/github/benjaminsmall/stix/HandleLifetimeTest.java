@@ -118,6 +118,43 @@ class HandleLifetimeTest {
     }
 
     @Test
+    void closeWaitsForInFlightCallThenLaterCallsThrow() throws Exception {
+        try (Engine engine = new Engine()) {
+            Pattern p = engine.parsePattern(PATTERN);
+            CountDownLatch inside = new CountDownLatch(1);
+            CountDownLatch release = new CountDownLatch(1);
+            p.inReadLockHook = () -> {
+                inside.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            };
+            ExecutorService pool = Executors.newFixedThreadPool(1);
+            try {
+                Future<Object> reader = pool.submit(() -> p.ast());
+                assertTrue(inside.await(10, TimeUnit.SECONDS));
+                p.inReadLockHook = () -> { };
+
+                Thread closer = new Thread(p::close);
+                closer.start();
+                closer.join(300);
+                assertTrue(closer.isAlive(), "close() must wait for the in-flight call");
+
+                release.countDown();
+                assertFalse(reader.get(10, TimeUnit.SECONDS).toString().isEmpty());
+                closer.join(10_000);
+                assertFalse(closer.isAlive(), "close() must complete after the call ends");
+                assertThrows(IllegalStateException.class, p::ast);
+            } finally {
+                release.countDown();
+                pool.shutdownNow();
+            }
+        }
+    }
+
+    @Test
     void concurrentUseAndCloseYieldsResultsOrIllegalStateOnly() throws Exception {
         int threads = 8;
         for (int round = 0; round < 20; round++) {
