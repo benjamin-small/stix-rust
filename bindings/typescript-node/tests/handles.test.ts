@@ -96,17 +96,41 @@ describe("wrapper rejects wrong-type arguments with ValidationError", () => {
         ["Engine", "parseBundle", "value"],
         ["Engine", "matchBundle", "value"],
         ["Engine", "registerType", "value"],
+        ["Bundle", Symbol.iterator, "value"],
       ];
+      // Receivers that pass \`instanceof\` but carry no (or a bogus) native handle.
+      const bogus = (cls) => {
+        const C = stix[cls];
+        const r = { "Object.create": Object.create(C.prototype) };
+        if (cls !== "Engine") {
+          r["new(null)"] = new C(null);
+          r["new(undefined)"] = new C(undefined);
+          r["new({})"] = new C({});
+          r["new(wrong handle)"] = new C(cls === "Bundle" ? pattern.raw : bundle.raw);
+        }
+        return r;
+      };
       for (const [cls, name, kind] of members) {
         const fn = Object.getOwnPropertyDescriptor(stix[cls].prototype, name)[kind];
+        const receivers = { ...bogus(cls) };
         for (const k of Object.keys(fixtures)) {
           const self = fixtures[k];
           if (self && self.constructor && self.constructor.name === cls) continue;
-          attempt(cls + "." + name + " this=" + k, () => fn.call(self, 0));
+          receivers[k] = self;
+        }
+        for (const [k, self] of Object.entries(receivers)) {
+          // A wrong \`new MatchResult({})\` has no native handle to check, so
+          // it is only required not to crash; it is skipped below.
+          if (cls === "MatchResult" && k === "new({})") continue;
+          if (cls === "MatchResult" && k === "new(wrong handle)") continue;
+          attempt(cls + "." + String(name) + " this=" + k, () => {
+            const r = fn.call(self, 0);
+            if (r && typeof r.next === "function") r.next();
+          });
         }
       }
     `);
-    expect(outs.length).toBeGreaterThan(0);
+    expect(outs.length).toBeGreaterThan(50);
     for (const o of outs) {
       expect(o, o.label).toMatchObject({ threw: true, isValidation: true });
     }

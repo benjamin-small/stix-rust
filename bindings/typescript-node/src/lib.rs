@@ -59,16 +59,34 @@ fn json_err(e: serde_json::Error) -> Error {
 /// the generated glue throw its own (code-less) error, and converting a
 /// `JsUnknown` to `External<T>` by hand needs `unsafe`. This safe pair performs
 /// the same value-type and TypeId checks.
+///
+/// # Aliasing invariant
+///
+/// `get_value_external` creates a `&mut T` to the boxed value (we downgrade it
+/// to `&T` immediately). If one export resolved two handles of the same `T`
+/// and JS passed the same External twice, that `&mut T` would alias the
+/// earlier `&T`: undefined behaviour. So **no export may request two handles
+/// of the same `T`**. Today every export takes at most one handle per type;
+/// [`assert_distinct_handle_types`] checks this where more than one is taken.
 #[allow(deprecated)]
 fn handle<'env, T: 'static>(env: &'env Env, value: JsUnknown, what: &str) -> Result<&'env T> {
     let invalid = || Error::from_reason(format!("[validation] expected a handle of type {what}"));
     let external = JsExternal::try_from(value).map_err(|_| invalid())?;
     // `get_value_external` checks the stored TypeId against `T` before casting.
-    // It hands out `&mut T`; we downgrade to `&T` at once. No entry point
-    // requests the same `T` twice, so no two references alias one value.
     env.get_value_external::<T>(&external)
         .map(|r| &*r)
         .map_err(|_| invalid())
+}
+
+/// Debug check for the aliasing invariant on [`handle`]: the handle types one
+/// export resolves must be pairwise distinct.
+fn assert_distinct_handle_types(ids: &[std::any::TypeId]) {
+    for (i, a) in ids.iter().enumerate() {
+        debug_assert!(
+            !ids[i + 1..].contains(a),
+            "an export resolves two handles of the same type; see `handle`"
+        );
+    }
 }
 
 /// The outcome of a match, returned as a plain JS object.
@@ -92,7 +110,8 @@ pub fn parse_pattern(
     let engine = handle::<stix_ffi::Engine>(&env, engine, "Engine")?;
     engine
         .parse_pattern(&src)
-        .map(External::new)
+        // Source length is a cheap lower bound on the AST's native footprint.
+        .map(|p| External::new_with_size_hint(p, src.len()))
         .map_err(map_err)
 }
 
@@ -105,7 +124,9 @@ pub fn parse_bundle(
     let engine = handle::<stix_ffi::Engine>(&env, engine, "Engine")?;
     engine
         .parse_bundle(&json)
-        .map(External::new)
+        // Tell V8 roughly how much native memory the bundle holds (it keeps
+        // every object's JSON), so the GC accounts for it.
+        .map(|b| External::new_with_size_hint(b, json.len()))
         .map_err(map_err)
 }
 
@@ -116,6 +137,12 @@ pub fn match_bundle(
     #[napi(ts_arg_type = "ExternalObject<'Pattern'>")] pattern: JsUnknown,
     #[napi(ts_arg_type = "ExternalObject<'Bundle'>")] bundle: JsUnknown,
 ) -> Result<MatchOutcome> {
+    use std::any::TypeId;
+    assert_distinct_handle_types(&[
+        TypeId::of::<stix_ffi::Engine>(),
+        TypeId::of::<stix_ffi::Pattern>(),
+        TypeId::of::<stix_ffi::Bundle>(),
+    ]);
     let engine = handle::<stix_ffi::Engine>(&env, engine, "Engine")?;
     let pattern = handle::<stix_ffi::Pattern>(&env, pattern, "Pattern")?;
     let bundle = handle::<stix_ffi::Bundle>(&env, bundle, "Bundle")?;

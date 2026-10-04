@@ -32,7 +32,13 @@ function expectInstance(value: unknown, cls: Function, what: string): void {
  */
 function rawOf<R>(self: unknown, cls: abstract new (...args: any[]) => { readonly raw: R }): R {
   expectInstance(self, cls, "this");
-  return (self as { readonly raw: R }).raw;
+  // `instanceof` alone admits Object.create(cls.prototype) and objects built
+  // with a bogus handle, so the handle itself must be present too.
+  const raw = (self as { readonly raw: R }).raw;
+  if (typeof raw !== "object" || raw === null) {
+    throw new ValidationError(`this is not a valid ${cls.name} (missing native handle)`);
+  }
+  return raw;
 }
 
 export class Pattern {
@@ -51,9 +57,16 @@ export class Bundle {
     const v = call(() => native.bundleObject(rawOf(this, Bundle), index));
     return v === null ? undefined : v;
   }
-  *[Symbol.iterator](): Iterator<any> {
-    const n = this.objectCount();
-    for (let i = 0; i < n; i++) yield this.object(i);
+  [Symbol.iterator](): Iterator<any> {
+    // Check the receiver eagerly, not on the first next() of a generator.
+    const raw = rawOf(this, Bundle);
+    const n = call(() => native.bundleObjectCount(raw));
+    return (function* () {
+      for (let i = 0; i < n; i++) {
+        const v = call(() => native.bundleObject(raw, i));
+        yield v === null ? undefined : v;
+      }
+    })();
   }
 }
 
@@ -72,13 +85,24 @@ export class Engine {
 
   constructor() { this.#raw = native.createEngine(); }
 
+  /**
+   * Throw ValidationError unless `self` is a constructed Engine. `instanceof`
+   * alone admits Object.create(Engine.prototype), which has no private fields.
+   */
+  static #check(self: unknown): void {
+    expectInstance(self, Engine, "this");
+    if (!(#raw in (self as object))) {
+      throw new ValidationError("this is not a valid Engine (missing native handle)");
+    }
+  }
+
   parsePattern(src: string): Pattern {
-    expectInstance(this, Engine, "this");
+    Engine.#check(this);
     return new Pattern(call(() => native.parsePattern(this.#raw, src)));
   }
 
   parseBundle(json: string): Bundle {
-    expectInstance(this, Engine, "this");
+    Engine.#check(this);
     // Apply registered hooks JS-side, then delegate to the raw parser.
     let text = json;
     if (this.#hooks.size > 0) {
@@ -99,7 +123,7 @@ export class Engine {
   }
 
   matchBundle(pattern: Pattern, bundle: Bundle): MatchResult {
-    expectInstance(this, Engine, "this");
+    Engine.#check(this);
     expectInstance(pattern, Pattern, "pattern");
     expectInstance(bundle, Bundle, "bundle");
     return new MatchResult(
@@ -108,7 +132,7 @@ export class Engine {
   }
 
   registerType(typeName: string, hook: CustomHook): void {
-    expectInstance(this, Engine, "this");
+    Engine.#check(this);
     this.#hooks.set(typeName, hook);
   }
 }
