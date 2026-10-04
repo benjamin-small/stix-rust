@@ -92,4 +92,55 @@ class StixTest {
             assertInstanceOf(StixException.class, ex);
         }
     }
+
+    private static String worstShape(int n) {
+        String s = "[a:b = 1]";
+        for (int i = 0; i < n; i++) {
+            s = "[a:b = 1] FOLLOWEDBY [a:b = 1] OR [a:b = 1] AND (" + s + ")";
+        }
+        return s;
+    }
+
+    @Test
+    void astOfDeepestAcceptedPatternRoundTrips() throws Exception {
+        try (Engine engine = new Engine();
+             Pattern pattern = engine.parsePattern(worstShape(40))) {
+            Map<String, Object> ast = pattern.ast();
+            assertFalse(ast.isEmpty());
+            com.fasterxml.jackson.databind.ObjectMapper m = new com.fasterxml.jackson.databind.ObjectMapper();
+            assertEquals(ast, m.readValue(m.writeValueAsString(ast), Map.class));
+        }
+    }
+
+    @Test
+    void patternOverNestingLimitIsParseError() {
+        try (Engine engine = new Engine()) {
+            ParseException ex = assertThrows(ParseException.class,
+                () -> engine.parsePattern(worstShape(41)));
+            assertTrue(ex.getMessage().contains("nests too deeply"), ex.getMessage());
+        }
+    }
+
+    @Test
+    void flatOrChainOfTenThousandObservations() {
+        StringBuilder sb = new StringBuilder("[a:b = 1]");
+        for (int i = 1; i < 10_000; i++) sb.append(" OR [a:b = 1]");
+        try (Engine engine = new Engine();
+             Pattern pattern = engine.parsePattern(sb.toString())) {
+            Map<String, Object> ast = pattern.ast();
+            Object or = findOr(ast);
+            assertInstanceOf(List.class, or);
+            assertEquals(10_000, ((List<?>) or).size());
+        }
+    }
+
+    private static Object findOr(Object node) {
+        if (node instanceof Map<?, ?> m) {
+            if (m.containsKey("Or")) return m.get("Or");
+            for (Object v : m.values()) { Object r = findOr(v); if (r != null) return r; }
+        } else if (node instanceof List<?> l) {
+            for (Object v : l) { Object r = findOr(v); if (r != null) return r; }
+        }
+        return null;
+    }
 }
