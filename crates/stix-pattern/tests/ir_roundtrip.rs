@@ -152,3 +152,19 @@ fn every_corpus_pattern_prints_a_listing() {
         );
     }
 }
+
+/// A flat chain of `AND`s parses with a loop, so it is shallow for the parser but
+/// nests one level per term in the IR. Before issue #32 this failed `validate`
+/// past 256 terms; it must now validate, render and round-trip.
+#[test]
+fn a_flat_300_term_and_chain_round_trips() {
+    let terms: Vec<String> = (0..300).map(|i| format!("[file:size = {i}]")).collect();
+    let src = terms.join(" AND ");
+    let ast = parse(&src).expect("chain parses");
+    let program = lower(&ast);
+    assert_eq!(program.validate(), Ok(()));
+    let text = render(&program);
+    assert_eq!(text, src);
+    let reparsed = parse(&text).expect("rendered chain parses");
+    assert_eq!(reparsed.without_spans(), ast.without_spans());
+}
