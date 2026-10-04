@@ -36,3 +36,5 @@
 [file:name='a'] REPEATS 5 TIMES
 [file:name='a'] START t'2020-01-01T00:00:00Z' STOP t'2020-01-02T00:00:00Z'
 [file:name='a'] REPEATS 2 TIMES WITHIN 60 SECONDS
+[file:size <> 1]
+[file:name = 'café']

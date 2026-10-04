@@ -8,11 +8,11 @@ use crate::ir::{Block, InstrId, Instruction, Op, Operand, Program};
 /// The output is canonical rather than a reproduction of any original source:
 /// whitespace is normalized, `!=` is the canonical spelling of not-equal, and
 /// parentheses appear only where operator precedence requires them. (The
-/// grammar's other spelling, `<>`, is not currently accepted by this crate's
-/// lexer; see [issue #29](https://github.com/benjamin-small/stix-rust/issues/29).)
+/// grammar's other spelling, `<>`, is accepted by the lexer and rendered as
+/// `!=`.)
 ///
 /// For a program lowered from [`parse`](crate::parse), reparsing this output
-/// recovers the same AST up to spans, as long as the pattern is ASCII:
+/// recovers the same AST up to spans, including non-ASCII string literals:
 ///
 /// ```
 /// use stix_pattern::{parse, ir};
@@ -23,10 +23,7 @@ use crate::ir::{Block, InstrId, Instruction, Op, Operand, Program};
 /// assert_eq!(parse(&text).unwrap().without_spans(), ast.without_spans());
 /// ```
 ///
-/// A non-ASCII string literal does **not** survive the round trip, because the
-/// lexer decodes string literals as Latin-1; see
-/// [issue #30](https://github.com/benjamin-small/stix-rust/issues/30). The
-/// guarantee also assumes the AST came from the parser: a hand-built `Comparison`
+/// The guarantee assumes the AST came from the parser: a hand-built `Comparison`
 /// using `EXISTS` with an operand other than `Literal::Boolean(true)` — the
 /// placeholder the parser writes — loses that operand, since the IR records
 /// `EXISTS` as having none.
@@ -565,12 +562,17 @@ mod tests {
         );
     }
 
-    /// Un-ignore this when #30 lands: it pins the one documented hole in the
-    /// round-trip guarantee, so the gap surfaces rather than rotting.
     #[test]
-    #[ignore = "blocked on lexer issue #30: string literals are decoded as Latin-1"]
     fn non_ascii_strings_round_trip() {
         assert_round_trips("[file:name = 'café']");
+        assert_round_trips("[file:name = '日本語 😀 it\\'s é']");
+        assert_eq!(round("[file:name='café']"), "[file:name = 'café']");
+    }
+
+    #[test]
+    fn diamond_not_equal_renders_as_bang_equal() {
+        assert_eq!(round("[file:size<>1]"), "[file:size != 1]");
+        assert_round_trips("[file:size <> 1]");
     }
 
     #[test]
