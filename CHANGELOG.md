@@ -56,8 +56,8 @@ visible. See [RELEASING.md](RELEASING.md).
   `Program::to_listing` prints a human-readable listing, escaping control
   characters so one instruction stays on one line, and `Program::span_of`
   computes the source extent of an instruction that carries no span of its own.
-  There is no depth limit: `render`
-  handles arbitrarily deep programs without overflowing the stack.
+  There is no depth limit: `render` handles arbitrarily deep programs without
+  overflowing the stack.
 - `stix_ffi::Pattern::ir_json`, `ir_listing` and `canonical`, exposing the IR as
   compact JSON, as the human-readable listing, and as canonical pattern text.
 - In the wasm binding, `Pattern.ir`, `Pattern.irListing` and `Pattern.canonical`
