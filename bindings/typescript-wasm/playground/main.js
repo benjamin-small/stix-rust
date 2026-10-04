@@ -176,6 +176,7 @@ async function start() {
     b.addEventListener("click", () => selectTab(b.dataset.tab));
   }
   document.querySelector("[role=tablist]").addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const current = tabButtons.findIndex((b) => b.getAttribute("aria-selected") === "true");
     const next = nextTabIndex(current, e.key, tabButtons.length);
     if (next === null) return;
