@@ -12,7 +12,9 @@ const BINDING = path.join(ROOT, "binding.js");
 
 /** Shared prelude: builds one value of every kind as `fixtures`. */
 const PRELUDE = `
-const stix = require(${JSON.stringify(DIST)});
+// argv: [node, DIST, BINDING, ...probe args]; inputs arrive as data, never as code.
+const [, DIST, BINDING, ...ARGS] = process.argv;
+const stix = require(DIST);
 const engine = new stix.Engine();
 const bundle = engine.parseBundle(JSON.stringify({
   type: "bundle", id: "bundle--1",
@@ -41,10 +43,13 @@ type Outcome = {
   isValidation?: boolean;
 };
 
-/** Run `body` (after PRELUDE) in a child process; return its recorded outcomes. */
-function probe(body: string): Outcome[] {
+/**
+ * Run `body` (after PRELUDE) in a child process; return its recorded outcomes.
+ * The script is a constant; `args` reach it as strings in `ARGS`.
+ */
+function probe(body: string, args: string[] = []): Outcome[] {
   const script = PRELUDE + body + "\nprocess.stdout.write(JSON.stringify(out));\n";
-  const r = spawnSync(process.execPath, ["-e", script], {
+  const r = spawnSync(process.execPath, ["-e", script, "--", DIST, BINDING, ...args], {
     encoding: "utf8",
     timeout: 30_000,
   });
@@ -70,7 +75,8 @@ describe("wrapper rejects wrong-type arguments with ValidationError", () => {
 
   it.each(wrongForPattern)("matchBundle(pattern = %s)", (kind) => {
     const [o] = probe(
-      `attempt("p", () => engine.matchBundle(fixtures[${JSON.stringify(kind)}], bundle));`,
+      `attempt("p", () => engine.matchBundle(fixtures[ARGS[0]], bundle));`,
+      [kind],
     );
     expect(o).toMatchObject({ threw: true, isValidation: true, name: "ValidationError" });
     expect(o.message).toMatch(/pattern must be a Pattern/);
@@ -78,7 +84,8 @@ describe("wrapper rejects wrong-type arguments with ValidationError", () => {
 
   it.each(wrongForBundle)("matchBundle(bundle = %s)", (kind) => {
     const [o] = probe(
-      `attempt("b", () => engine.matchBundle(pattern, fixtures[${JSON.stringify(kind)}]));`,
+      `attempt("b", () => engine.matchBundle(pattern, fixtures[ARGS[0]]));`,
+      [kind],
     );
     expect(o).toMatchObject({ threw: true, isValidation: true, name: "ValidationError" });
     expect(o.message).toMatch(/bundle must be a Bundle/);
@@ -140,7 +147,7 @@ describe("wrapper rejects wrong-type arguments with ValidationError", () => {
 describe("raw native layer type-checks every handle", () => {
   it("every exported function rejects every wrong-type handle", () => {
     const outs = probe(`
-      const raw = require(${JSON.stringify(BINDING)});
+      const raw = require(BINDING);
       const e = raw.createEngine();
       const p = raw.parsePattern(e, "[ipv4-addr:value = '198.51.100.5']");
       const b = raw.parseBundle(e, '{"type":"bundle","id":"bundle--1","objects":[]}');
@@ -187,7 +194,7 @@ describe("raw native layer type-checks every handle", () => {
 
   it("well-typed handles still work end to end", () => {
     const outs = probe(`
-      const raw = require(${JSON.stringify(BINDING)});
+      const raw = require(BINDING);
       const e = raw.createEngine();
       const p = raw.parsePattern(e, "[ipv4-addr:value = '198.51.100.5']");
       const b = raw.parseBundle(e, JSON.stringify({ type: "bundle", id: "bundle--1",
