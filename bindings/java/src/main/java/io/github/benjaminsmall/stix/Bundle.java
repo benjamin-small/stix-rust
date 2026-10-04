@@ -2,34 +2,31 @@ package io.github.benjaminsmall.stix;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.lang.ref.Cleaner;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-/** An imported bundle. Iterable over its objects (each a Map). */
-public final class Bundle implements AutoCloseable, Iterable<Map<String, Object>> {
+/**
+ * An imported bundle. Iterable over its objects (each a Map). Using it (or an iterator
+ * obtained from it) after close() throws {@link IllegalStateException}.
+ */
+public final class Bundle extends NativeHandle implements Iterable<Map<String, Object>> {
     static { NativeLoader.load(); }
-    private static final Cleaner CLEANER = Cleaner.create();
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final TypeReference<Map<String, Object>> MAP_TYPE =
         new TypeReference<Map<String, Object>>() {};
 
-    private final long ptr;
-    private final Cleaner.Cleanable cleanable;
-
     Bundle(long ptr) {
-        this.ptr = ptr;
-        this.cleanable = CLEANER.register(this, () -> nativeFree(ptr));
+        super("Bundle", ptr, Bundle::nativeFree);
     }
 
-    long ptr() { return ptr; }
+    /** @throws IllegalStateException if the bundle is closed */
+    public int objectCount() { return useHandle(Bundle::nativeObjectCount); }
 
-    public int objectCount() { return nativeObjectCount(ptr); }
-
+    /** @throws IllegalStateException if the bundle is closed */
     public Optional<Map<String, Object>> object(int index) {
-        String json = nativeObject(ptr, index);
+        String json = useHandle(p -> nativeObject(p, index));
         if (json == null) {
             return Optional.empty();
         }
@@ -58,9 +55,6 @@ public final class Bundle implements AutoCloseable, Iterable<Map<String, Object>
             }
         };
     }
-
-    @Override
-    public void close() { cleanable.clean(); }
 
     private static native int nativeObjectCount(long ptr);
     private static native String nativeObject(long ptr, int index);
