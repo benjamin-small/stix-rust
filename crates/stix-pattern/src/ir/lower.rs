@@ -11,16 +11,17 @@ use crate::ir::{
 
 /// Lower a parsed pattern into its three-address representation.
 ///
-/// This is total: every well-formed [`Pattern`] lowers, and the result always
-/// satisfies [`Program::validate`](crate::ir::Program::validate).
+/// This is total for every [`Pattern`] that satisfies the AST invariants, which
+/// [`parse`](crate::parse) guarantees. The result always satisfies
+/// [`Program::validate`](crate::ir::Program::validate).
 ///
 /// Each n-ary chain node becomes the left-associative chain of binary
 /// operations it stands for, so `a OR b OR c` lowers to `Or(Or(a, b), c)`.
 ///
 /// # Panics
 ///
-/// If a chain node has no operands. [`parse`](crate::parse) never produces
-/// one; only a hand-built or deserialized [`Pattern`] can.
+/// If a chain node has no operands. This can only happen in hand-built or
+/// deserialized [`Pattern`]s that violate the AST invariants.
 pub fn lower(pattern: &Pattern) -> Program {
     let mut l = Lowerer {
         next_instr: 0,
