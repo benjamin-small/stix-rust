@@ -10,7 +10,7 @@ Jackson `Map<String, Object>`.
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("io.github.benjaminsmall:stix:0.1.0")
+implementation("io.github.benjaminsmall:stix:0.2.0")
 ```
 
 From source instead:

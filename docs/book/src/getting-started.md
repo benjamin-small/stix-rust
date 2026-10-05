@@ -48,7 +48,7 @@ Or from source: `cd bindings/typescript-node && npm install && npm run build`
 
 ```kotlin
 // Gradle (Kotlin DSL)
-implementation("io.github.benjaminsmall:stix:0.1.0")
+implementation("io.github.benjaminsmall:stix:0.2.0")
 ```
 
 Or from source: `cd bindings/java && gradle test` builds the native library and
