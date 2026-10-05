@@ -89,6 +89,15 @@ visible. See [RELEASING.md](RELEASING.md).
 - Float literals too large to represent are rejected with "float literal out of
   range" instead of parsing to infinity
   ([#31](https://github.com/benjamin-small/stix-rust/issues/31)).
+- The Node binding no longer crashes the process when a method receives an object
+  of the wrong class (for example `engine.matchBundle(bundle, pattern)` with the
+  arguments swapped): every native entry point now type-checks its handles and
+  throws `ValidationError`
+  ([#67](https://github.com/benjamin-small/stix-rust/pull/67)).
+- The Java binding rejects use of a `Pattern`, `Bundle` or `Engine` after
+  `close()` with `IllegalStateException` instead of passing a freed handle to
+  native code, and `close()` now waits for in-flight native calls
+  ([#66](https://github.com/benjamin-small/stix-rust/pull/66)).
 
 <!--
   Deliberately no "Removed" or "BREAKING" entries for ir::MAX_DEPTH,
