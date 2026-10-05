@@ -10,6 +10,8 @@ visible. See [RELEASING.md](RELEASING.md).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-04
+
 ### Changed
 
 - **BREAKING:** `ObservationExpression::{And, Or, FollowedBy}` and
