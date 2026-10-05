@@ -3,4 +3,5 @@ Cargo.lock
 **/*.rs.bk
 docs/book/book/
 .claude/worktrees/
+.claude/launch.json
 .superpowers/
