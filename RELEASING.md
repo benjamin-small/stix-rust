@@ -23,9 +23,11 @@ Before tagging, update [`CHANGELOG.md`](CHANGELOG.md): rename its `[Unreleased]`
 section to the version being cut and date it.
 
 When bumping versions, update both `package.json` files
-(`bindings/typescript-node` and `bindings/typescript-wasm`), including the Node
-binding's `optionalDependencies` on its own `@stix-rust/node-*` platform packages.
-Then refresh the lockfiles and commit the result:
+(`bindings/typescript-node` and `bindings/typescript-wasm`). Don't add
+`optionalDependencies` for the Node binding's `@stix-rust/node-*` platform
+packages: `napi prepublish` writes them at publish time, and committing them would
+pin versions that don't exist yet, which `npm ci` (npm 11) rejects. Then refresh
+the lockfiles and commit the result:
 
 ```bash
 (cd bindings/typescript-node && npx -y npm@10 install --package-lock-only)

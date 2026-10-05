@@ -1,6 +1,11 @@
 {
   "name": "@stix-rust/node",
   "version": "0.2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/benjamin-small/stix-rust",
+    "directory": "bindings/typescript-node"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "napi": {
@@ -32,10 +37,5 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "optionalDependencies": {
-    "@stix-rust/node-linux-x64-gnu": "0.2.0",
-    "@stix-rust/node-darwin-arm64": "0.2.0",
-    "@stix-rust/node-win32-x64-msvc": "0.2.0"
   }
 }
