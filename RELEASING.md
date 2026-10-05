@@ -74,9 +74,12 @@ index until the leaves are published. The first tag push is the real test.
 1. **crates.io** — for each of the five crates, Settings → Trusted Publishing → add
    this repo + `release-crates.yml`. Then delete the `CARGO_REGISTRY_TOKEN` secret
    and swap the workflow's token env for the crates.io OIDC auth action.
-2. **npm** — for both packages, package Settings → Trusted Publisher → this repo +
-   `release-npm.yml`. Then delete the `NPM_TOKEN` secret and drop the
-   `NODE_AUTH_TOKEN` envs.
+2. **npm** — done. All five packages (`@stix-rust/node`, `@stix-rust/wasm` and
+   the three `@stix-rust/node-*` platform packages) trust this repo +
+   `release-npm.yml`; the publish jobs authenticate via OIDC (`id-token: write`,
+   npm >= 11.5.1 on Node 24), so `NPM_TOKEN` is unused and can be deleted. A new
+   platform package must be added as a trusted publisher on npmjs.com before its
+   first publish from CI.
 3. Revoke both tokens at their registries.
 
 ## Follow-up docs PR (after 0.1.0 is live)

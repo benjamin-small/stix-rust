@@ -36,12 +36,17 @@ jobs:
   node-publish:
     needs: node-build
     runs-on: ubuntu-latest
+    # npm trusted publishing: the job authenticates with a short-lived OIDC token,
+    # so no NPM_TOKEN secret is needed (or read).
+    permissions: { contents: read, id-token: write }
     defaults: { run: { working-directory: bindings/typescript-node } }
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      # Node 24 ships npm 11; trusted publishing needs npm >= 11.5.1.
       - uses: actions/setup-node@v4
-        with: { node-version: 20, registry-url: 'https://registry.npmjs.org', cache: npm, cache-dependency-path: bindings/typescript-node/package-lock.json }
+        with: { node-version: 24, cache: npm, cache-dependency-path: bindings/typescript-node/package-lock.json }
+      - run: npm --version
       - run: npm ci
       - uses: actions/download-artifact@v4
         with:
@@ -62,7 +67,6 @@ jobs:
           tar -tzf "$tarball" | grep -q "package/dist/index.js" || { echo "dist missing from tarball"; exit 1; }
           rm "$tarball"
       - run: npx napi prepublish -t npm --skip-gh-release
-        env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
       - name: Publish (skip if version already live)
         run: |
           VERSION=$(node -p "require('./package.json').version")
@@ -71,16 +75,17 @@ jobs:
           else
             npm publish --access public
           fi
-        env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
   wasm-publish:
     runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write }
     defaults: { run: { working-directory: bindings/typescript-wasm } }
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: wasm32-unknown-unknown }
       - uses: actions/setup-node@v4
-        with: { node-version: 20, registry-url: 'https://registry.npmjs.org', cache: npm, cache-dependency-path: bindings/typescript-wasm/package-lock.json }
+        with: { node-version: 24, cache: npm, cache-dependency-path: bindings/typescript-wasm/package-lock.json }
+      - run: npm --version
       - run: cargo install wasm-pack --locked
       - run: npm ci
       - run: npm run build
@@ -99,4 +104,3 @@ jobs:
           else
             npm publish --access public
           fi
-        env: { NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}' }
