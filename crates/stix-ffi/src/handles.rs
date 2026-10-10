@@ -76,6 +76,9 @@ pub struct MatchOutcome {
     pub matched: bool,
     /// The indices of the observations that participated in the match.
     pub observations: Vec<u64>,
+    /// The ids of those observations' `observed-data` objects: entry *k* is the
+    /// id of the `observations[k]`-th `observed-data` in bundle order.
+    pub observed_data_ids: Vec<String>,
 }
 
 #[cfg(test)]
@@ -109,6 +112,7 @@ mod tests {
         let o = MatchOutcome {
             matched: true,
             observations: vec![0, 2],
+            observed_data_ids: vec![],
         };
         assert!(o.matched);
         assert_eq!(o.observations, vec![0, 2]);
