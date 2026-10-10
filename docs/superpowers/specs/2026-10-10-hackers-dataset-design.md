@@ -73,6 +73,15 @@ model and matcher together.
 Exact counts are the implementer's call within "lean": every listed element
 appears; additional SDO types are added only where the plot supports them.
 
+### The bundle
+
+`bundle.json` is a single STIX 2.1 `bundle` object that groups the entire
+dataset: `{"type": "bundle", "id": "bundle--<UUIDv4>", "objects": [ … ]}`.
+Every object of the dataset — SDOs, SROs, SCOs — is in its `objects` array;
+nothing lives outside it. Per STIX 2.1 the bundle itself carries no
+`spec_version`, `created` or `modified`. Its ID is fixed so tests and docs can
+cite it.
+
 ### Values and conventions
 
 - **IDs:** `<type>--<UUIDv4>`, generated once and committed. No ID is reused.
@@ -145,7 +154,9 @@ here with its expected result.
 `crates/stix/tests/datasets.rs` discovers every directory under `datasets/`
 (at runtime via `CARGO_MANIFEST_DIR`) and, per dataset, asserts:
 
-1. `bundle.json` parses with `stix-model` (`Bundle::from_json_str`).
+1. `bundle.json` is a single object with `type == "bundle"`, a well-formed
+   `bundle--<UUID>` ID and no `spec_version`, and parses with `stix-model`
+   (`Bundle::from_json_str`).
 2. Every `id` is unique and its prefix equals the object's `type`; the UUID part
    is well-formed.
 3. Every SDO/SRO has `spec_version == "2.1"`, `created` and `modified`, and
