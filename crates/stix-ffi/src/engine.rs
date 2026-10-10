@@ -1,6 +1,6 @@
 //! The `Engine` handle: owns a registry, parses patterns/bundles, runs matches.
 
-use stix::model::ModelRegistry;
+use stix::model::{ModelRegistry, StixObject, TypedObject};
 
 use crate::error::ErrorCode;
 use crate::error::FfiError;
@@ -62,9 +62,25 @@ impl Engine {
         bundle: &Bundle,
     ) -> Result<MatchOutcome, FfiError> {
         let result = stix::matcher::match_bundle(pattern.inner(), bundle.inner())?;
+        // Same filter, same order as stix_matcher::match_bundle, so index i agrees.
+        let observed: Vec<&str> = bundle
+            .inner()
+            .objects
+            .iter()
+            .filter_map(|o| match o {
+                StixObject::Typed(TypedObject::ObservedData(od)) => Some(od.id.as_str()),
+                _ => None,
+            })
+            .collect();
+        let observed_data_ids = result
+            .observations()
+            .iter()
+            .filter_map(|&i| observed.get(i).map(|s| s.to_string()))
+            .collect();
         Ok(MatchOutcome {
             matched: result.is_match(),
             observations: result.observations().iter().map(|&i| i as u64).collect(),
+            observed_data_ids,
         })
     }
 }
@@ -148,6 +164,41 @@ mod tests {
             .parse_bundle(r#"{"type":"ipv4-addr","id":"x--1"}"#)
             .unwrap_err();
         assert_eq!(err.code, ErrorCode::Model);
+    }
+
+    #[test]
+    fn match_bundle_reports_observed_data_ids_in_bundle_order() {
+        let bundle_json = r#"{"type":"bundle","id":"bundle--00000000-0000-4000-8000-000000000000","objects":[
+        {"type":"domain-name","spec_version":"2.1","id":"domain-name--00000000-0000-4000-8000-000000000001","value":"a.example"},
+        {"type":"domain-name","spec_version":"2.1","id":"domain-name--00000000-0000-4000-8000-000000000002","value":"b.example"},
+        {"type":"observed-data","spec_version":"2.1","id":"observed-data--00000000-0000-4000-8000-00000000000a",
+         "created":"1995-01-01T00:00:00.000Z","modified":"1995-01-01T00:00:00.000Z",
+         "first_observed":"1995-01-01T00:00:00.000Z","last_observed":"1995-01-01T00:00:00.000Z",
+         "number_observed":1,"object_refs":["domain-name--00000000-0000-4000-8000-000000000001"]},
+        {"type":"observed-data","spec_version":"2.1","id":"observed-data--00000000-0000-4000-8000-00000000000b",
+         "created":"1995-01-01T00:00:00.000Z","modified":"1995-01-01T00:00:00.000Z",
+         "first_observed":"1995-01-01T00:00:00.000Z","last_observed":"1995-01-01T00:00:00.000Z",
+         "number_observed":1,"object_refs":["domain-name--00000000-0000-4000-8000-000000000002"]}
+    ]}"#;
+        let engine = Engine::new();
+        let bundle = engine.parse_bundle(bundle_json).unwrap();
+        let hit_second = engine
+            .parse_pattern("[domain-name:value = 'b.example']")
+            .unwrap();
+        let out = engine.match_bundle(&hit_second, &bundle).unwrap();
+        assert!(out.matched);
+        assert_eq!(out.observations, vec![1]);
+        assert_eq!(
+            out.observed_data_ids,
+            vec!["observed-data--00000000-0000-4000-8000-00000000000b".to_string()]
+        );
+
+        let miss = engine
+            .parse_pattern("[domain-name:value = 'c.example']")
+            .unwrap();
+        let out = engine.match_bundle(&miss, &bundle).unwrap();
+        assert!(!out.matched);
+        assert!(out.observed_data_ids.is_empty());
     }
 
     #[test]
