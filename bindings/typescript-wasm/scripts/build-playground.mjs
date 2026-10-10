@@ -24,4 +24,23 @@ cpSync(from("pkg-web"), join(out, "pkg"), {
   filter: (src) => !PACKAGING.has(basename(src)),
 });
 cpSync(from("..", "..", "docs", "book", "mermaid.min.js"), join(out, "mermaid.min.js"));
+const vendor = join(out, "vendor");
+const lib = from("node_modules", "@poietic-tech", "graphing-library");
+for (const sub of ["dist", "pkg"]) {
+  if (!existsSync(join(lib, sub))) {
+    console.error(`@poietic-tech/graphing-library/${sub} is missing; run npm ci`);
+    process.exit(1);
+  }
+  cpSync(join(lib, sub), join(vendor, "graphing-library", sub), {
+    recursive: true,
+    filter: (src) => !src.endsWith(".map") && !src.endsWith(".d.ts"),
+  });
+}
+if (existsSync(join(lib, "LICENSE"))) cpSync(join(lib, "LICENSE"), join(vendor, "graphing-library", "LICENSE"));
+mkdirSync(join(vendor, "marked"), { recursive: true });
+cpSync(from("node_modules", "marked", "lib", "marked.esm.js"), join(vendor, "marked", "marked.esm.js"));
+cpSync(from("..", "..", "datasets", "hackers-1995"), join(out, "datasets", "hackers-1995"), {
+  recursive: true,
+  filter: (src) => !src.endsWith("README.md"),
+});
 console.log(`playground assembled in ${out}`);

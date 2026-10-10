@@ -100,6 +100,7 @@ impl Bundle {
 pub struct MatchResult {
     matched: bool,
     observations: Vec<u32>,
+    observed_data_ids: Vec<String>,
 }
 
 #[wasm_bindgen]
@@ -112,6 +113,11 @@ impl MatchResult {
     #[wasm_bindgen(getter)]
     pub fn observations(&self) -> Vec<u32> {
         self.observations.clone()
+    }
+
+    #[wasm_bindgen(getter, js_name = observedDataIds)]
+    pub fn observed_data_ids(&self) -> Vec<String> {
+        self.observed_data_ids.clone()
     }
 }
 
@@ -153,6 +159,7 @@ impl Engine {
             .map(|o| MatchResult {
                 matched: o.matched,
                 observations: o.observations.iter().map(|&i| i as u32).collect(),
+                observed_data_ids: o.observed_data_ids,
             })
             .map_err(err_js)
     }

@@ -58,9 +58,19 @@ Errors are `StixError` subclasses: `ParseError`, `ModelError`, `MatchError`,
 
 ## Playground
 
-`playground/` is a static page that parses a pattern in the browser and shows
-its AST, IR listing, IR JSON, IR graph, and canonical text. It is published at
-`/playground/` on the project's docs site.
+`playground/` is a graph-first static page that explores the Hackers (1995)
+STIX 2.1 dataset. It draws the bundle's objects as a graph, shows the report
+narrative and per-object details beside it, and highlights the observations,
+and the objects behind them, that a pattern you type matches. Example patterns
+appear as chips. A collapsible Inspector below shows the pattern's IR graph,
+IR listing, AST, IR JSON, and canonical text. It is published at `/playground/`
+on the project's docs site.
+
+The graph view needs WebGL2. Where it is unavailable, or when the page is
+opened with `?nograph`, the graph is replaced by a notice and the report and
+pattern tools keep working. The graphing library and `marked` are vendored into
+`playground-dist/` at build time from devDependencies; the dataset is copied
+from `datasets/hackers-1995/`.
 
 To run it locally:
 

@@ -3,6 +3,11 @@ import { EXAMPLES } from "./examples.js";
 import { irToMermaid, instructionsInOrder, isInstructionLine } from "./graph.js";
 import { spanToRange, parseErrorSpan } from "./spans.js";
 import { nextTabIndex } from "./tabs.js";
+import { bundleToGraph } from "./bundle-graph.js";
+import { traceMatch } from "./trace.js";
+import { createGraphView } from "./graph-view.js";
+import { createDetails } from "./details.js";
+import { Marked } from "./vendor/marked/marked.esm.js";
 import { MERMAID_MAX_EDGES, MERMAID_MAX_TEXT_SIZE } from "./limits.js";
 
 const $ = (id) => document.getElementById(id);
@@ -20,6 +25,7 @@ let engine;
 let current = null; // { text, instrs } from the last successful parse
 let errorRange = null; // UTF-16 range of the current parse error
 let graphSeq = 0;
+let bundle = null, objects = [], graphView = null, details = null, lastTiers = null;
 
 const messageOf = (e) => (e instanceof Error ? e.message : String(e));
 
@@ -102,9 +108,24 @@ async function renderGraph(ir, listing) {
   }
 }
 
+function clearMatch() {
+  lastTiers = null;
+  graphView?.setTiers(null);
+  $("match-status").textContent = "";
+}
+
+function showGraphFallback() {
+  $("bundle-graph").hidden = true;
+  const fb = $("graph-fallback");
+  fb.textContent = "This browser can't run the graph view (WebGL2 unavailable). The pattern tools and report still work.";
+  fb.hidden = false;
+  fb.parentElement.classList.add("no-graph");
+}
+
 function update() {
   const text = input.value;
   if (!text.trim()) {
+    clearMatch();
     current = null;
     errorRange = null;
     errorBanner.hidden = true;
@@ -129,6 +150,7 @@ function update() {
   try {
     pattern = engine.parsePattern(text);
   } catch (e) {
+    clearMatch();
     showFailure(e);
     showMark();
     return;
@@ -151,6 +173,21 @@ function update() {
     renderListing(listing);
     current = { text, instrs: instructionsInOrder(ir) };
     renderGraph(ir, listing);
+    if (bundle) {
+      try {
+        const r = engine.matchBundle(pattern, bundle);
+        let ids;
+        try { ids = Array.from(r.observedDataIds); } finally { r.free(); }
+        lastTiers = traceMatch(objects, ids);
+        $("match-status").textContent = ids.length
+          ? `${ids.length} observation${ids.length === 1 ? "" : "s"} matched`
+          : "no observations matched";
+      } catch (e) {
+        lastTiers = null;
+        $("match-status").textContent = messageOf(e).replace(/^\[\w+\]\s?/, "");
+      }
+      graphView?.setTiers(lastTiers);
+    }
   } catch (e) {
     showFailure(e);
   } finally {
@@ -168,6 +205,8 @@ async function start() {
     banner.textContent = `Couldn't load the WebAssembly module: ${messageOf(e)}`;
     banner.hidden = false;
     document.querySelector("main").hidden = true;
+    document.querySelector(".pattern-bar").hidden = true;
+    document.querySelector(".inspector").hidden = true;
     return;
   }
 
@@ -180,9 +219,45 @@ async function start() {
     theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default",
   });
 
+  let patterns = [];
+  try {
+    const [bt, pt] = await Promise.all(
+      ["bundle.json", "patterns.json"].map(async (f) => {
+        const res = await fetch(`datasets/hackers-1995/${f}`);
+        if (!res.ok) throw new Error(`${f}: HTTP ${res.status}`);
+        return res.text();
+      }),
+    );
+    patterns = JSON.parse(pt);
+    bundle = engine.parseBundle(bt);
+    objects = JSON.parse(bt).objects;
+  } catch (e) {
+    bundle = null;
+    objects = [];
+    const banner = $("load-error");
+    banner.textContent = `Couldn't load the Hackers dataset: ${messageOf(e)}`;
+    banner.hidden = false;
+  }
+
+  if (bundle) {
+    details = createDetails($("details"), objects, { Marked, onFocus: (id) => graphView?.focus(id) });
+    details.showReport();
+    for (const p of patterns) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = p.name;
+      b.addEventListener("click", () => { input.value = p.pattern; $("examples").value = ""; update(); });
+      $("chips").append(b);
+    }
+    if (patterns.length) input.value = patterns[0].pattern;
+  }
+  if (!input.value) input.value = EXAMPLES[0].pattern;
+
   const select = $("examples");
+  select.append(new Option("Choose an example…", ""));
   EXAMPLES.forEach((ex, i) => select.append(new Option(ex.label, String(i))));
   select.addEventListener("change", () => {
+    if (select.value === "") return;
     input.value = EXAMPLES[Number(select.value)].pattern;
     update();
   });
@@ -206,6 +281,7 @@ async function start() {
 
   let timer;
   input.addEventListener("input", () => {
+    select.value = "";
     errorRange = null;
     showMark();
     clearTimeout(timer);
@@ -224,8 +300,28 @@ async function start() {
   });
   $("graph").addEventListener("mouseleave", showMark);
 
-  input.value = EXAMPLES[0].pattern;
   update();
+
+  if (bundle) {
+    if (new URLSearchParams(location.search).has("nograph")) {
+      showGraphFallback();
+    } else {
+      try {
+        graphView = await createGraphView($("bundle-graph"), bundleToGraph(objects), {
+          onNodeClick: (id) => {
+            details.show(id);
+            if (matchMedia("(max-width: 900px)").matches) {
+              $("details").scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }
+          },
+          dark: matchMedia("(prefers-color-scheme: dark)").matches,
+        });
+        graphView.setTiers(lastTiers);
+      } catch (e) {
+        showGraphFallback(e);
+      }
+    }
+  }
 }
 
 start();
