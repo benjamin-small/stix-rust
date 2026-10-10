@@ -118,12 +118,17 @@ pattern-inspection tools regresses.
 With no match, every node is undimmed and the status reads
 "no observations matched". With an empty pattern, likewise.
 
-The graph library's node and edge stylers read the current tier map:
+The graph library's per-node and per-edge stylers (`setNodeStyler` /
+`setEdgeStyler`) read the current tier map. The library has no outline styles, so
+the tiers are drawn as:
 
-- glow nodes are full colour with a halo;
-- trace nodes are full colour with a dashed outline;
-- dim nodes are at about 25% opacity;
-- glow and trace edges are emphasised.
+- glow: gold, largest radius;
+- trace: the type colour, enlarged;
+- dim: about 20% opacity.
+
+Glow and trace edges are gold and wider, with their relationship label shown;
+other edges are faint. (Amended 2026-10-10: the design discussion said "halo"
+and "dashed outline", which the library does not offer.)
 
 ## Details panel
 
