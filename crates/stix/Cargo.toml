@@ -17,3 +17,6 @@ stix-matcher = { workspace = true }
 [dev-dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+regex = { workspace = true }
+sha2 = "0.10"
+base64 = "0.22"
