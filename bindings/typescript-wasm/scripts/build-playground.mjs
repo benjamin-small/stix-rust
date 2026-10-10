@@ -36,6 +36,7 @@ for (const sub of ["dist", "pkg"]) {
     filter: (src) => !src.endsWith(".map") && !src.endsWith(".d.ts"),
   });
 }
+if (existsSync(join(lib, "LICENSE"))) cpSync(join(lib, "LICENSE"), join(vendor, "graphing-library", "LICENSE"));
 mkdirSync(join(vendor, "marked"), { recursive: true });
 cpSync(from("node_modules", "marked", "lib", "marked.esm.js"), join(vendor, "marked", "marked.esm.js"));
 cpSync(from("..", "..", "datasets", "hackers-1995"), join(out, "datasets", "hackers-1995"), {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { bundleToGraph, refsOf, isContainerRef, labelOf, familyOf } from "../playground/bundle-graph.js";
+import { bundleToGraph, incomingRefs, refsOf, isContainerRef, labelOf, familyOf } from "../playground/bundle-graph.js";
 
 const objects = JSON.parse(
   fs.readFileSync(path.join(__dirname, "../../../datasets/hackers-1995/bundle.json"), "utf8"),
@@ -77,5 +77,32 @@ describe("helpers", () => {
     expect(labelOf({ type: "observed-data", first_observed: "1995-08-14T23:02:00.000Z" })).toBe("observed-data 1995-08-14");
     expect(familyOf("threat-actor")).toBe("actor");
     expect(familyOf("domain-name")).toBe("observable");
+  });
+});
+
+describe("incomingRefs", () => {
+  it("lists the observed-data that holds a file SCO, via object_refs", () => {
+    const od = objects.find((o) => o.type === "observed-data" && o.object_refs.some((r: string) => r.startsWith("file--")));
+    const fileId = od.object_refs.find((r: string) => r.startsWith("file--"));
+    const inc = incomingRefs(objects, fileId);
+    expect(inc.some((x: any) => x.holder.id === od.id && x.property === "object_refs")).toBe(true);
+  });
+
+  it("lists sightings that reference an observed-data", () => {
+    const s = objects.find((o) => o.type === "sighting" && o.observed_data_refs?.length);
+    const inc = incomingRefs(objects, s.observed_data_refs[0]);
+    expect(inc.some((x: any) => x.holder.id === s.id)).toBe(true);
+  });
+
+  it("never lists container holders or relationships", () => {
+    for (const o of objects) {
+      for (const { holder, property } of incomingRefs(objects, o.id)) {
+        expect(holder.type).not.toBe("relationship");
+        expect(isContainerRef(holder.type, property)).toBe(false);
+        expect(["report", "grouping", "note", "opinion"].includes(holder.type) && property === "object_refs").toBe(false);
+      }
+    }
+    const report = objects.find((o) => o.type === "report");
+    expect(incomingRefs(objects, objects.find((o) => o.type === "file").id).some((x: any) => x.holder.id === report.id)).toBe(false);
   });
 });

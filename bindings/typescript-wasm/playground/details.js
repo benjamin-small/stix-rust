@@ -2,7 +2,7 @@
 // one is selected. Links of the form #obj:<id> focus that object.
 
 import { renderMarkdown, escapeHtml } from "./render.js";
-import { labelOf } from "./bundle-graph.js";
+import { labelOf, incomingRefs } from "./bundle-graph.js";
 import { FAMILY_COLOURS, FAMILY_SHAPES } from "./graph-view.js";
 
 const KEY_PROPS = [
@@ -38,19 +38,36 @@ export function createDetails(panel, objects, { Marked, onFocus }) {
         if (o.target_ref === id) out.push(`<li>${link(o.source_ref)} → ${escapeHtml(o.relationship_type)}</li>`);
       }
     }
-    return out.length ? `<h4>Relationships</h4><ul>${out.join("")}</ul>` : "";
+    for (const { holder, property } of incomingRefs(objects, id)) {
+      out.push(`<li>${link(holder.id)} → ${escapeHtml(property)}</li>`);
+    }
+    return out.length ? `<h4>Relationships and references</h4><ul>${out.join("")}</ul>` : "";
   }
 
-  function showReport() {
+  let viewingReport = false;
+  let reportScroll = 0;
+  // Move screen-reader focus to the new view's heading (not on first render).
+  const focusHeading = () => {
+    const h = panel.querySelector("h2");
+    if (!h) return;
+    h.tabIndex = -1;
+    h.focus({ preventScroll: true });
+  };
+
+  function showReport({ focus = false, restore = false } = {}) {
+    viewingReport = true;
     panel.innerHTML = report
       ? `<h2>${escapeHtml(report.name)}</h2>${md(report.description)}${legend()}`
       : `<p>No report in this bundle.</p>${legend()}`;
+    panel.scrollTop = restore ? reportScroll : 0;
+    if (focus) focusHeading();
   }
 
   function show(id) {
     const o = byId.get(id);
-    if (!o) return showReport();
-    if (o.type === "report") return showReport();
+    if (!o || o.type === "report") return showReport({ focus: true });
+    if (viewingReport) reportScroll = panel.scrollTop;
+    viewingReport = false;
     const props = KEY_PROPS.filter((k) => o[k] !== undefined)
       .map((k) => `<tr><th>${escapeHtml(k)}</th><td>${value(o[k])}</td></tr>`).join("");
     const refs = Object.entries(o)
@@ -64,13 +81,15 @@ export function createDetails(panel, objects, { Marked, onFocus }) {
       ${props || refs ? `<table>${props}${refs}</table>` : ""}
       ${connections(id)}
       <p class="id"><code>${escapeHtml(o.id)}</code></p>`;
+    panel.scrollTop = 0;
+    focusHeading();
   }
 
   panel.addEventListener("click", (e) => {
     const a = e.target.closest?.("a[href]");
     if (!a) return;
     const href = a.getAttribute("href");
-    if (href === "#report") { e.preventDefault(); showReport(); return; }
+    if (href === "#report") { e.preventDefault(); showReport({ focus: true, restore: true }); return; }
     if (href.startsWith("#obj:")) { e.preventDefault(); const id = href.slice(5); show(id); onFocus?.(id); }
   });
 

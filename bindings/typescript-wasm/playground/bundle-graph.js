@@ -43,6 +43,27 @@ export function isContainerRef(holderType, property) {
   );
 }
 
+/**
+ * Non-relationship objects that reference `id`, as `{ holder, property }`.
+ * Relationships are covered by their source/target; container references are
+ * skipped, as in the graph, so a report does not list every object.
+ */
+export function incomingRefs(objects, id) {
+  const out = [];
+  const seen = new Set();
+  for (const o of objects) {
+    if (o.type === "relationship") continue;
+    for (const [property, target] of refsOf(o)) {
+      const key = `${o.id}|${property}`;
+      if (target === id && !isContainerRef(o.type, property) && !seen.has(key)) {
+        seen.add(key);
+        out.push({ holder: o, property });
+      }
+    }
+  }
+  return out;
+}
+
 /** The text a node shows. */
 export function labelOf(o) {
   if (typeof o.name === "string") return o.name;

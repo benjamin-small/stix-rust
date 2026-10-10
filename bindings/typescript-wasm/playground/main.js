@@ -246,7 +246,7 @@ async function start() {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = p.name;
-      b.addEventListener("click", () => { input.value = p.pattern; update(); });
+      b.addEventListener("click", () => { input.value = p.pattern; $("examples").value = ""; update(); });
       $("chips").append(b);
     }
     if (patterns.length) input.value = patterns[0].pattern;
@@ -281,6 +281,7 @@ async function start() {
 
   let timer;
   input.addEventListener("input", () => {
+    select.value = "";
     errorRange = null;
     showMark();
     clearTimeout(timer);
@@ -307,7 +308,12 @@ async function start() {
     } else {
       try {
         graphView = await createGraphView($("bundle-graph"), bundleToGraph(objects), {
-          onNodeClick: (id) => details.show(id),
+          onNodeClick: (id) => {
+            details.show(id);
+            if (matchMedia("(max-width: 900px)").matches) {
+              $("details").scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }
+          },
           dark: matchMedia("(prefers-color-scheme: dark)").matches,
         });
         graphView.setTiers(lastTiers);

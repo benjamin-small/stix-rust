@@ -42,6 +42,20 @@ for (const p of patterns) {
   });
 }
 
+describe("indicator-backed patterns", () => {
+  const sightedOd = new Set(objects.filter((o) => o.type === "sighting").flatMap((o) => o.observed_data_refs ?? []));
+  for (const p of patterns.filter((q) => q.expect.matched && q.expect.observed_data.some((id: string) => sightedOd.has(id)))) {
+    it(`"${p.name}" has a non-empty trace tier`, () => {
+      const ids = engine.matchBundle(engine.parsePattern(p.pattern), bundle).observedDataIds;
+      const t = traceMatch(objects, ids);
+      expect([...t.nodes.values()].filter((v) => v === "trace").length).toBeGreaterThan(0);
+    });
+  }
+  it("covers at least one pattern", () => {
+    expect(patterns.some((q) => q.expect.observed_data?.some((id: string) => sightedOd.has(id)))).toBe(true);
+  });
+});
+
 describe("trace through sightings and indicators", () => {
   it("reaches what a sighted indicator indicates, and one hop beyond", () => {
     const sighted = objects.filter((o) => o.type === "sighting");
