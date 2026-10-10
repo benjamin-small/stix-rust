@@ -11,36 +11,43 @@
 <body>
   <header>
     <h1>STIX Pattern Playground</h1>
-    <p>Parse a STIX 2.1 pattern with <a href="../">stix-rust</a>, compiled to
-      WebAssembly, and inspect its AST and IR. Nothing leaves your browser.</p>
+    <p>Hackers (1995) — a STIX 2.1 dataset, explored in WebAssembly</p>
   </header>
   <div id="load-error" class="banner error" role="alert" hidden></div>
-  <main>
-    <section class="input">
-      <label for="examples">Example</label>
-      <select id="examples"></select>
-      <div class="editor">
-        <div id="backdrop" class="backdrop" aria-hidden="true" inert></div>
-        <textarea id="pattern" spellcheck="false" autocomplete="off" aria-label="STIX pattern"></textarea>
-      </div>
-      <div id="parse-error" class="banner error" role="status" hidden></div>
-    </section>
-    <section class="output">
-      <nav role="tablist" aria-label="Output">
-        <button role="tab" id="tab-graph" aria-controls="graph" data-tab="graph">Graph</button>
-        <button role="tab" id="tab-listing" aria-controls="listing" data-tab="listing">IR listing</button>
-        <button role="tab" id="tab-ast" aria-controls="ast" data-tab="ast">AST</button>
-        <button role="tab" id="tab-ir" aria-controls="ir" data-tab="ir">IR JSON</button>
-        <button role="tab" id="tab-canonical" aria-controls="canonical" data-tab="canonical">Canonical</button>
-      </nav>
-      <div id="panes">
-        <div class="pane" data-pane="graph" id="graph" role="tabpanel" aria-labelledby="tab-graph" tabindex="0"></div>
-        <pre class="pane" data-pane="listing" id="listing" role="tabpanel" aria-labelledby="tab-listing" tabindex="0"></pre>
-        <pre class="pane" data-pane="ast" id="ast" role="tabpanel" aria-labelledby="tab-ast" tabindex="0"></pre>
-        <pre class="pane" data-pane="ir" id="ir" role="tabpanel" aria-labelledby="tab-ir" tabindex="0"></pre>
-        <pre class="pane" data-pane="canonical" id="canonical" role="tabpanel" aria-labelledby="tab-canonical" tabindex="0"></pre>
-      </div>
-    </section>
+  <section class="pattern-bar">
+    <div class="editor">
+      <div id="backdrop" class="backdrop" aria-hidden="true" inert></div>
+      <textarea id="pattern" spellcheck="false" autocomplete="off" aria-label="STIX pattern"></textarea>
+    </div>
+    <div id="parse-error" class="banner error" role="status" hidden></div>
+    <p id="match-status" role="status"></p>
+    <div id="chips" class="chips" aria-label="Example patterns"></div>
+  </section>
+  <main class="explorer">
+    <div class="graph-wrap">
+      <canvas id="bundle-graph" aria-label="Object graph of the Hackers STIX bundle"></canvas>
+      <p id="graph-fallback" hidden></p>
+    </div>
+    <aside id="details" class="details" aria-live="polite"></aside>
   </main>
+  <details class="inspector">
+    <summary>Inspector — IR graph, listing, AST, IR JSON, canonical</summary>
+    <label for="examples">Inspector examples</label>
+    <select id="examples"></select>
+    <nav role="tablist" aria-label="Output">
+      <button role="tab" id="tab-graph" aria-controls="graph" data-tab="graph">IR graph</button>
+      <button role="tab" id="tab-listing" aria-controls="listing" data-tab="listing">IR listing</button>
+      <button role="tab" id="tab-ast" aria-controls="ast" data-tab="ast">AST</button>
+      <button role="tab" id="tab-ir" aria-controls="ir" data-tab="ir">IR JSON</button>
+      <button role="tab" id="tab-canonical" aria-controls="canonical" data-tab="canonical">Canonical</button>
+    </nav>
+    <div id="panes">
+      <div class="pane" data-pane="graph" id="graph" role="tabpanel" aria-labelledby="tab-graph" tabindex="0"></div>
+      <pre class="pane" data-pane="listing" id="listing" role="tabpanel" aria-labelledby="tab-listing" tabindex="0"></pre>
+      <pre class="pane" data-pane="ast" id="ast" role="tabpanel" aria-labelledby="tab-ast" tabindex="0"></pre>
+      <pre class="pane" data-pane="ir" id="ir" role="tabpanel" aria-labelledby="tab-ir" tabindex="0"></pre>
+      <pre class="pane" data-pane="canonical" id="canonical" role="tabpanel" aria-labelledby="tab-canonical" tabindex="0"></pre>
+    </div>
+  </details>
 </body>
 </html>

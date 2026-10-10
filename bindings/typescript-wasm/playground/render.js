@@ -13,10 +13,20 @@ export function linkCitations(markdown, knownIds) {
   return markdown.replace(ID_RE, (match, id) => (knownIds.has(id) ? `[\`${id}\`](#obj:${id})` : match));
 }
 
+// Only these destinations become anchors; anything else renders as plain text.
+const SAFE_HREF = /^(?:https?:|mailto:|#obj:|#report$)/i;
+
 export function renderMarkdown(markdown, MarkedCtor, knownIds) {
   const marked = new MarkedCtor({
     gfm: true,
     renderer: {
+      link(token) {
+        const text = this.parser.parseInline(token.tokens);
+        if (!SAFE_HREF.test(String(token.href).trim())) return text;
+        const title = token.title ? ` title="${escapeHtml(token.title)}"` : "";
+        return `<a href="${escapeHtml(token.href)}"${title}>${text}</a>`;
+      },
+      image: (token) => escapeHtml(token.text ?? ""),
       html: (token) => escapeHtml(typeof token === "string" ? token : token.text),
     },
   });

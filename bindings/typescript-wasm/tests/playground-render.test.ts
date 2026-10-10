@@ -39,4 +39,17 @@ describe("render", () => {
   it("escapes HTML special characters", () => {
     expect(escapeHtml(`<a href="x">'&'</a>`)).toBe("&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;");
   });
+
+  it("does not render unsafe link destinations as anchors", () => {
+    for (const bad of ["javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x", "vbscript:x"]) {
+      const html = renderMarkdown(`[x](${bad} "t") and [y](https://ok.example/ "a&b")`, Marked, known);
+      expect(html.toLowerCase()).not.toContain('href="javascript:');
+      expect(html.toLowerCase()).not.toContain('href="data:');
+      expect(html.toLowerCase()).not.toContain('href="vbscript:');
+      expect(html).toContain('<a href="https://ok.example/" title="a&amp;b">y</a>');
+    }
+    const mail = renderMarkdown("[m](mailto:a@b.c) [r](#report)", Marked, known);
+    expect(mail).toContain('href="mailto:a@b.c"');
+    expect(mail).toContain('href="#report"');
+  });
 });
