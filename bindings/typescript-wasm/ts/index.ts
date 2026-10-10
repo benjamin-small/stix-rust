@@ -47,6 +47,7 @@ export class MatchResult {
   /** @internal */ constructor(raw: RawMatchResult) { this.raw = raw; }
   get matched(): boolean { return this.raw.matched; }
   get observations(): number[] { return Array.from(this.raw.observations); }
+  get observedDataIds(): string[] { return Array.from(this.raw.observedDataIds); }
 }
 
 export type CustomHook = (obj: any) => any;

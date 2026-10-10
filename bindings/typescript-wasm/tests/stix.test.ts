@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it, expect } from "vitest";
 import {
   Engine,
@@ -121,5 +123,17 @@ describe("stix wasm binding", () => {
           : undefined;
       expect(find(ast)).toHaveLength(10000);
     });
+  });
+
+  it("reports matched observed-data ids", () => {
+    const dir = path.join(__dirname, "../../../datasets/hackers-1995");
+    const engine = new Engine();
+    const bundle = engine.parseBundle(fs.readFileSync(path.join(dir, "bundle.json"), "utf8"));
+    const patterns = JSON.parse(fs.readFileSync(path.join(dir, "patterns.json"), "utf8"));
+    for (const p of patterns) {
+      const r = engine.matchBundle(engine.parsePattern(p.pattern), bundle);
+      expect(r.matched).toBe(p.expect.matched);
+      expect([...new Set(r.observedDataIds)].sort()).toEqual([...p.expect.observed_data].sort());
+    }
   });
 });
