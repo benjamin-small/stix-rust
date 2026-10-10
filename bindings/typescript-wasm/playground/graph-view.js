@@ -39,6 +39,9 @@ export async function createGraphView(canvas, graph, { onNodeClick, dark }) {
       when: { attr: "family", equals: family },
       set: { color, shape: FAMILY_SHAPES[family] },
     })),
+    // Label level-of-detail: at the fitted zoom nodes are only a few screen px, so
+    // the library default gate (8 px) would hide every label.
+    labels: { min_screen_radius_px: 2, max_labels: 60, edge_min_screen_length_px: 40, max_edge_labels: 40 },
     edge_base: { color: dark ? "#5d6670" : "#a3abb5", width: 1.2, label_attr: "label", label_visible: false },
   });
   client.setBackground(dark ? "#0d1117" : "#f6f8fa");
@@ -68,8 +71,8 @@ export async function createGraphView(canvas, graph, { onNodeClick, dark }) {
             // The engine calls a node styler as (id, role, attrs); node ids are STIX ids.
             const t = tiers.nodes.get(id);
             if (t === "glow") return { color: GLOW, radius: 14, opacity: 1, label_visible: true };
-            if (t === "trace") return { radius: 11, opacity: 1 };
-            return { opacity: 0.2 };
+            if (t === "trace") return { radius: 11, opacity: 1, label_visible: true };
+            return { opacity: 0.2, label_visible: false };
           }
         : null,
     );
