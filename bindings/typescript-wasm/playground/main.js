@@ -119,6 +119,7 @@ function showGraphFallback() {
   const fb = $("graph-fallback");
   fb.textContent = "This browser can't run the graph view (WebGL2 unavailable). The pattern tools and report still work.";
   fb.hidden = false;
+  fb.parentElement.classList.add("no-graph");
 }
 
 function update() {
@@ -175,8 +176,8 @@ function update() {
     if (bundle) {
       try {
         const r = engine.matchBundle(pattern, bundle);
-        const ids = Array.from(r.observedDataIds);
-        r.free();
+        let ids;
+        try { ids = Array.from(r.observedDataIds); } finally { r.free(); }
         lastTiers = traceMatch(objects, ids);
         $("match-status").textContent = ids.length
           ? `${ids.length} observation${ids.length === 1 ? "" : "s"} matched`
@@ -205,6 +206,7 @@ async function start() {
     banner.hidden = false;
     document.querySelector("main").hidden = true;
     document.querySelector(".pattern-bar").hidden = true;
+    document.querySelector(".inspector").hidden = true;
     return;
   }
 
@@ -252,8 +254,10 @@ async function start() {
   if (!input.value) input.value = EXAMPLES[0].pattern;
 
   const select = $("examples");
+  select.append(new Option("Choose an example…", ""));
   EXAMPLES.forEach((ex, i) => select.append(new Option(ex.label, String(i))));
   select.addEventListener("change", () => {
+    if (select.value === "") return;
     input.value = EXAMPLES[Number(select.value)].pattern;
     update();
   });

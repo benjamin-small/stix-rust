@@ -42,8 +42,12 @@ export async function createGraphView(canvas, graph, { onNodeClick, dark }) {
     edge_base: { color: dark ? "#5d6670" : "#a3abb5", width: 1.2, label_attr: "label", label_visible: false },
   });
   client.setBackground(dark ? "#0d1117" : "#f6f8fa");
+  // reduced_motion makes the layout settle synchronously inside load(), so the
+  // single fitView() below frames the settled extent, not the initial one.
+  client.setAnimation({ reduced_motion: true });
   client.load(JSON.stringify(graph));
   client.fitView();
+  const ids = new Set((graph.nodes ?? []).map((n) => n.id));
   const pointer = attachPointer(client, canvas, {
     onNodeClick: (hit) => { if (hit.kind === "node") onNodeClick?.(hit.id); },
   });
@@ -60,9 +64,10 @@ export async function createGraphView(canvas, graph, { onNodeClick, dark }) {
   const applyTiers = () => {
     client.setNodeStyler(
       tiers
-        ? (attrs) => {
-            const t = tiers.nodes.get(attrs.stix_id);
-            if (t === "glow") return { color: GLOW, radius: 14, opacity: 1 };
+        ? (id) => {
+            // The engine calls a node styler as (id, role, attrs); node ids are STIX ids.
+            const t = tiers.nodes.get(id);
+            if (t === "glow") return { color: GLOW, radius: 14, opacity: 1, label_visible: true };
             if (t === "trace") return { radius: 11, opacity: 1 };
             return { opacity: 0.2 };
           }
@@ -86,6 +91,7 @@ export async function createGraphView(canvas, graph, { onNodeClick, dark }) {
       applyTiers();
     },
     focus(id) {
+      if (!ids.has(id)) return;
       client.selectId(id);
       client.focus(id);
     },
