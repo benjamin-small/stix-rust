@@ -50,11 +50,11 @@ model and matcher together.
 | --- | --- |
 | Dade Murphy — "Zero Cool", later "Crash Override" | `threat-actor` (roles `hacker`, sophistication `expert`; `aliases` carry both handles; 1988 Zero Cool history in `description`) |
 | Kate Libby — "Acid Burn"; "Cereal Killer"; "Lord Nikon"; "Phantom Phreak"; Joey Pardella | one `threat-actor` each |
-| The crew | `intrusion-set` ("The Elite"), with each crew threat-actor `attributed-to` it |
+| The crew | `intrusion-set` ("The Elite"), with each crew threat-actor `attributed-to` it (see Amendments) |
 | Eugene Belford — "The Plague" | `threat-actor` (insider, primary motivation `personal-gain`) |
 | Ellingson Mineral Company | `identity` (organization; `sectors` from the closest `industry-sector-ov` value(s)), `located-at` a `location` (New York City) |
 | Secret Service Agent Richard Gill | `identity` (individual) |
-| The Gibson supercomputer | `infrastructure` (owned by Ellingson; `compromises`/`targets` edges from the actors and malware) |
+| The Gibson supercomputer | `infrastructure` (owned by Ellingson (see Amendments); `compromises`/`targets` edges from the actors and malware) |
 | The salami-slicing worm (the real embezzlement) | `malware` (worm) |
 | The Da Vinci virus (the threat to capsize the tanker fleet) | `malware` (virus), `authored-by`/`attributed-to` The Plague |
 | The Plague's scheme to frame the kids | `campaign`, `attributed-to` The Plague |
@@ -202,3 +202,8 @@ Two PRs, merged in order:
    then on `datasets/` must contain at least one valid dataset.
 
 The playground integration is the next spec.
+
+## Amendments (2026-10-10)
+
+- **R5, attribution direction.** The Elite (`intrusion-set`) is `attributed-to` each crew `threat-actor`, not the reverse, because STIX 2.1 defines `attributed-to` from intrusion-set to threat-actor.
+- **R6, Gibson ownership.** Ellingson (`identity`) is `related-to` the Gibson (`infrastructure`), with "owns and operates" in the relationship description. STIX 2.1 defines `owns` to infrastructure only from threat-actor or intrusion-set, and the OASIS validator warns {202} otherwise.

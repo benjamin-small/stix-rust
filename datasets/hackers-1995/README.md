@@ -63,7 +63,7 @@ Every non-relationship object in the bundle, with its id. The 35 `relationship` 
 - **Ellingson and the Gibson.** Ellingson Mineral Company is `related-to` the Gibson, because STIX does not define an identity `owns` infrastructure relationship.
 - **Reserved addresses.** Domains use the `.example` TLD. IPv4 addresses come from the RFC 5737 documentation ranges (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`).
 - **File hash.** The `file` object's `hashes.SHA-256` is the real SHA-256 of the decoded `payload_bin` of its `content_ref` `artifact`.
-- **SCO ids.** Cyber-observable ids are deterministic UUIDv5 values, as the spec requires.
+- **SCO ids.** Cyber-observable ids are deterministic UUIDv5 values, as STIX 2.1 recommends.
 - **No pattern qualifiers.** Example patterns do not use `WITHIN`, `REPEATS` or `START...STOP`.
 - **Fiction.** The vulnerability has no CVE, the in-story dates are invented, and the ATT&CK techniques are approximations of what happens on screen.
 
@@ -82,3 +82,5 @@ The bundle was also checked with OASIS `stix2-validator` 3.2.0 (3.3.1 on PyPI sh
 ## Adding another movie dataset
 
 Create a sibling directory under `datasets/` (for example `datasets/<title>-<year>/`) with the same three files: `bundle.json`, `patterns.json` and a `README.md`. The `datasets` test discovers it automatically.
+
+The Rust validator does not check required properties, open-vocabulary values or per-type-pair relationship validity, so every new dataset must also pass a `stix2-validator` (3.2.0) run, with its output included in the PR.
