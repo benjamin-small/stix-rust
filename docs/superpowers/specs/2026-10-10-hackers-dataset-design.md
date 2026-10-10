@@ -108,10 +108,15 @@ cite it.
 Relationships chain rather than radiate. For example:
 threat-actor → intrusion-set → campaign → malware → infrastructure → identity → location;
 sighting → observed-data → SCOs; indicator → malware; report → grouping → evidence.
-Mechanical requirement (enforced by a test): treating every SRO endpoint and
-every `*_ref`/`*_refs` property as an undirected edge, (a) some pair of objects
-is at least 4 hops apart, and (b) no single object touches more than one third
-of all edges.
+Mechanical requirement (enforced by a test). Build an undirected graph whose
+nodes are the bundle's objects: each `relationship` is one edge between its
+`source_ref` and `target_ref`; every other `*_ref`/`*_refs` property is an edge
+from the object holding it to the referenced object — **except container
+references**, which would otherwise turn the report into a hub: `object_refs` on
+`report`, `grouping`, `note` and `opinion`, plus `created_by_ref` and
+`object_marking_refs` everywhere (`observed-data`'s `object_refs` stay: they are
+real structure). Then (a) some pair of objects is at least 4 hops apart, and
+(b) no object has more than max(3, ⌊edges / 3⌋) edges.
 
 ### Narrative (the report)
 
@@ -186,11 +191,14 @@ During authoring, the implementer also runs the OASIS `stix2-validator`
 
 ## Delivery
 
-Two stacked PRs, merged in order:
+Two PRs, merged in order:
 
-1. **Dataset (parent):** `datasets/hackers-1995/` and the AGENTS.md row, with
-   the `stix2-validator` output in the PR body.
-2. **Validation test (rust-core):** `crates/stix/tests/datasets.rs` and the
-   dev-dependencies, stacked on (1) so CI runs it against the real dataset.
+1. **Validation test (rust-core):** `crates/stix/tests/datasets.rs` and its
+   dev-dependencies, proven against a synthetic in-test dataset with one
+   negative test per check. With no `datasets/` directory yet it validates
+   nothing and says so.
+2. **Dataset (parent):** `datasets/hackers-1995/` and the AGENTS.md row, with
+   the `stix2-validator` output in the PR body. CI runs (1) against it, and from
+   then on `datasets/` must contain at least one valid dataset.
 
 The playground integration is the next spec.
