@@ -86,8 +86,10 @@ pattern-inspection tools regresses.
 - Type styling is declarative: one style rule per STIX type family
   (threat-actor/intrusion-set/campaign, malware/tool/attack-pattern,
   identity/location/infrastructure, indicator/sighting/observed-data, SCOs,
-  report/grouping/note/opinion), each a distinct colour and shape. The legend
-  in the details panel's default view explains them.
+  report/grouping/note/opinion), each a distinct colour. The library offers
+  three shapes (circle, square, diamond), so shapes repeat across families as a
+  secondary cue; colour is what tells families apart. The legend in the details
+  panel's default view explains them.
 
 ### Matching
 
