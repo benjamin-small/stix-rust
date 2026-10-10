@@ -13,6 +13,7 @@ subagent, and reviews/merges the resulting PRs.
 | Java | `java-binding` | `bindings/java/**` | jni-rs + Gradle | (none yet) |
 | TypeScript (Node) | `typescript-node-binding` | `bindings/typescript-node/**` | napi-rs + npm | (none yet) |
 | TypeScript (wasm) | `typescript-wasm-binding` | `bindings/typescript-wasm/**` | wasm-bindgen + npm | (none yet) |
+| Datasets | parent | `datasets/**` | JSON (validated by `crates/stix/tests/datasets.rs`) | (none yet) |
 
 Area-specific skills are listed in the "Skills" column as they are authored, and
 live either as directory-scoped skills under the area or under `.claude/skills/`
