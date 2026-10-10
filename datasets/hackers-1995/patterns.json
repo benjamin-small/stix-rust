@@ -1,0 +1,95 @@
+[
+  {
+    "name": "Garbage file by SHA-256 (indicator)",
+    "pattern": "[file:hashes.'SHA-256' = '6ef3f735fcf6e04d268d3eb1c17f71c06cb6418ffb95983b5849f756220b0dff']",
+    "expect": {
+      "matched": true,
+      "observed_data": [
+        "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8",
+        "observed-data--2d7d303d-769d-487d-8ff5-13e4e0462cd9"
+      ]
+    }
+  },
+  {
+    "name": "Garbage file location on the Gibson (indicator)",
+    "pattern": "[url:value = 'http://ellingson-mineral.example/gibson/garbage']",
+    "expect": {
+      "matched": true,
+      "observed_data": [
+        "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8"
+      ]
+    }
+  },
+  {
+    "name": "Ellingson domain",
+    "pattern": "[domain-name:value = 'ellingson-mineral.example']",
+    "expect": {
+      "matched": true,
+      "observed_data": [
+        "observed-data--351e35e5-5273-49ed-b2d5-16a4e951f29b"
+      ]
+    }
+  },
+  {
+    "name": "The Gibson's address",
+    "pattern": "[ipv4-addr:value = '192.0.2.15']",
+    "expect": {
+      "matched": true,
+      "observed_data": [
+        "observed-data--2d7d303d-769d-487d-8ff5-13e4e0462cd9",
+        "observed-data--351e35e5-5273-49ed-b2d5-16a4e951f29b"
+      ]
+    }
+  },
+  {
+    "name": "Garbage file contents as an artifact",
+    "pattern": "[artifact:mime_type = 'text/plain']",
+    "expect": {
+      "matched": true,
+      "observed_data": [
+        "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8",
+        "observed-data--2d7d303d-769d-487d-8ff5-13e4e0462cd9"
+      ]
+    }
+  },
+  {
+    "name": "Ellingson domain resolved to the documentation range (AND)",
+    "pattern": "[domain-name:value = 'ellingson-mineral.example' AND domain-name:resolves_to_refs[*].value = '192.0.2.15']",
+    "expect": {
+      "matched": true,
+      "observed_data": [
+        "observed-data--351e35e5-5273-49ed-b2d5-16a4e951f29b"
+      ]
+    }
+  },
+  {
+    "name": "Garbage file or an unrelated address (OR)",
+    "pattern": "[file:name = 'garbage' OR ipv4-addr:value = '198.51.100.7']",
+    "expect": {
+      "matched": true,
+      "observed_data": [
+        "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8",
+        "observed-data--2d7d303d-769d-487d-8ff5-13e4e0462cd9"
+      ]
+    }
+  },
+  {
+    "name": "Trace then download (observation AND)",
+    "pattern": "[domain-name:value = 'ellingson-mineral.example'] AND [url:value = 'http://ellingson-mineral.example/gibson/garbage']",
+    "expect": {
+      "matched": true,
+      "observed_data": [
+        "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8",
+        "observed-data--351e35e5-5273-49ed-b2d5-16a4e951f29b"
+      ]
+    }
+  },
+  {
+    "name": "A host the story never touches",
+    "pattern": "[domain-name:value = 'gibson.example']",
+    "expect": {
+      "matched": false,
+      "observed_data": []
+    }
+  }
+]

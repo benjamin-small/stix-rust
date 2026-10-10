@@ -1,0 +1,968 @@
+{
+  "type": "bundle",
+  "id": "bundle--546eb18c-c7d9-43f0-9ca1-c9332b0e8d42",
+  "objects": [
+    {
+      "type": "threat-actor",
+      "spec_version": "2.1",
+      "id": "threat-actor--35817f6b-3bee-455b-9293-1b675c3e039f",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Zero Cool",
+      "aliases": [
+        "Zero Cool",
+        "Crash Override",
+        "Dade Murphy"
+      ],
+      "description": "Dade Murphy. As an eleven-year-old in 1988, under the handle Zero Cool, he crashed 1,507 computer systems in a single day and was banned from using computers until his eighteenth birthday. On moving to New York he returns to hacking as Crash Override.",
+      "threat_actor_types": [
+        "hacker"
+      ],
+      "sophistication": "expert",
+      "resource_level": "individual",
+      "primary_motivation": "personal-satisfaction"
+    },
+    {
+      "type": "threat-actor",
+      "spec_version": "2.1",
+      "id": "threat-actor--769697f8-5d89-4852-b0ca-35007a113207",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Acid Burn",
+      "aliases": [
+        "Acid Burn",
+        "Kate Libby"
+      ],
+      "description": "Kate Libby, the crew's other elite hacker and Crash Override's rival.",
+      "threat_actor_types": [
+        "hacker"
+      ],
+      "sophistication": "expert",
+      "resource_level": "individual",
+      "primary_motivation": "personal-satisfaction"
+    },
+    {
+      "type": "threat-actor",
+      "spec_version": "2.1",
+      "id": "threat-actor--9bece18c-6a60-4388-ad76-b17b87bc341c",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Cereal Killer",
+      "aliases": [
+        "Cereal Killer",
+        "Emmanuel Goldstein"
+      ],
+      "description": "Emmanuel Goldstein, a member of the crew.",
+      "threat_actor_types": [
+        "hacker"
+      ],
+      "sophistication": "intermediate",
+      "resource_level": "individual",
+      "primary_motivation": "personal-satisfaction"
+    },
+    {
+      "type": "threat-actor",
+      "spec_version": "2.1",
+      "id": "threat-actor--c244d45b-bd59-4aa1-9654-31fa5e838060",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Lord Nikon",
+      "aliases": [
+        "Lord Nikon",
+        "Paul Cook"
+      ],
+      "description": "Paul Cook, a member of the crew with a photographic memory.",
+      "threat_actor_types": [
+        "hacker"
+      ],
+      "sophistication": "intermediate",
+      "resource_level": "individual",
+      "primary_motivation": "personal-satisfaction"
+    },
+    {
+      "type": "threat-actor",
+      "spec_version": "2.1",
+      "id": "threat-actor--2089251f-5830-4ec5-acb7-75d95df5fe73",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Phantom Phreak",
+      "aliases": [
+        "Phantom Phreak",
+        "Ramón Sánchez"
+      ],
+      "description": "Ramón Sánchez, the crew's phone phreak.",
+      "threat_actor_types": [
+        "hacker"
+      ],
+      "sophistication": "intermediate",
+      "resource_level": "individual",
+      "primary_motivation": "personal-satisfaction"
+    },
+    {
+      "type": "threat-actor",
+      "spec_version": "2.1",
+      "id": "threat-actor--1fb8f593-d33d-48a4-8552-c2d9c1866c69",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Joey Pardella",
+      "aliases": [
+        "Joey Pardella"
+      ],
+      "description": "The crew's youngest member, still without a handle. To prove himself he breaks into the Gibson and copies part of the garbage file.",
+      "threat_actor_types": [
+        "hacker"
+      ],
+      "sophistication": "minimal",
+      "resource_level": "individual",
+      "primary_motivation": "notoriety"
+    },
+    {
+      "type": "threat-actor",
+      "spec_version": "2.1",
+      "id": "threat-actor--33cb320c-1869-4419-ac56-2baaffa7d8b8",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "The Plague",
+      "aliases": [
+        "The Plague",
+        "Eugene Belford"
+      ],
+      "description": "Eugene Belford, Ellingson Mineral Company's computer security officer and a former hacker. From inside the company he embezzles money with a worm and tries to pin the theft on the crew.",
+      "threat_actor_types": [
+        "criminal",
+        "insider-disgruntled"
+      ],
+      "roles": [
+        "director",
+        "malware-author"
+      ],
+      "sophistication": "expert",
+      "resource_level": "individual",
+      "primary_motivation": "personal-gain"
+    },
+    {
+      "type": "intrusion-set",
+      "spec_version": "2.1",
+      "id": "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "The Elite",
+      "description": "The loose crew of New York teenage hackers around Crash Override and Acid Burn.",
+      "resource_level": "club",
+      "primary_motivation": "personal-satisfaction"
+    },
+    {
+      "type": "location",
+      "spec_version": "2.1",
+      "id": "location--2bb7b5a8-54ea-4cb9-a7f1-3b3bbe9e9825",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "New York City",
+      "city": "New York",
+      "administrative_area": "NY",
+      "country": "US",
+      "region": "northern-america"
+    },
+    {
+      "type": "identity",
+      "spec_version": "2.1",
+      "id": "identity--1811a3f4-5206-48e0-b9b3-1f4a739c38b9",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Ellingson Mineral Company",
+      "identity_class": "organization",
+      "sectors": [
+        "mining",
+        "energy"
+      ],
+      "description": "The company that owns the Gibson and runs a fleet of oil tankers."
+    },
+    {
+      "type": "identity",
+      "spec_version": "2.1",
+      "id": "identity--4dd7a523-5d73-42c2-83bd-63f91d3f9ebd",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Richard Gill",
+      "identity_class": "individual",
+      "sectors": [
+        "government-national"
+      ],
+      "description": "U.S. Secret Service agent who pursues the crew."
+    },
+    {
+      "type": "infrastructure",
+      "spec_version": "2.1",
+      "id": "infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Gibson",
+      "infrastructure_types": [
+        "control-system"
+      ],
+      "description": "Ellingson Mineral Company's supercomputer. It runs the company's business, including the ballast systems of its tanker fleet."
+    },
+    {
+      "type": "vulnerability",
+      "spec_version": "2.1",
+      "id": "vulnerability--76711ef5-f535-45fa-8dd7-c7b40f0d7c18",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Gibson weak account passwords",
+      "description": "Fictional: privileged Gibson accounts protected by common, easily guessed passwords. No CVE exists."
+    },
+    {
+      "type": "malware",
+      "spec_version": "2.1",
+      "id": "malware--4ca60a83-79b5-4ae9-a447-85c67318c125",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Salami-slicing worm",
+      "is_family": false,
+      "malware_types": [
+        "worm"
+      ],
+      "description": "The Plague's worm on the Gibson. It shaves a tiny fraction off each Ellingson transaction and diverts it to an account he controls."
+    },
+    {
+      "type": "malware",
+      "spec_version": "2.1",
+      "id": "malware--b646305f-de43-4fd2-8bdf-59d2b74f4fb7",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Da Vinci",
+      "is_family": false,
+      "malware_types": [
+        "virus"
+      ],
+      "description": "The Da Vinci virus, presented as an extortion threat to capsize Ellingson's tanker fleet. It covers the worm and is blamed on the crew."
+    },
+    {
+      "type": "campaign",
+      "spec_version": "2.1",
+      "id": "campaign--8a4cc02b-ae30-4990-83c8-064bbd5c0740",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "The Plague's frame-up",
+      "description": "The Plague releases Da Vinci, blames it on the crew and steers the Secret Service toward them, hiding his own embezzlement.",
+      "first_seen": "1995-08-14T00:00:00.000Z",
+      "last_seen": "1995-09-02T00:00:00.000Z",
+      "objective": "Hide the embezzlement by framing the crew for the Da Vinci virus."
+    },
+    {
+      "type": "campaign",
+      "spec_version": "2.1",
+      "id": "campaign--2b8c0f39-3568-4a89-8fbd-258815f30a9e",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Hack the Planet",
+      "description": "The crew calls on hackers everywhere to swamp the Gibson at once, giving cover to copy the garbage file that proves The Plague's guilt.",
+      "first_seen": "1995-09-01T00:00:00.000Z",
+      "last_seen": "1995-09-02T00:00:00.000Z",
+      "objective": "Recover the garbage file as evidence and clear the crew."
+    },
+    {
+      "type": "attack-pattern",
+      "spec_version": "2.1",
+      "id": "attack-pattern--af6b93c5-2f3a-4790-9eb6-10a48e433f15",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Phishing for Information",
+      "description": "Dade Murphy, hacking as Crash Override, talks a television station's security guard into reading out the number of the station's modem.",
+      "external_references": [
+        {
+          "source_name": "mitre-attack",
+          "external_id": "T1598",
+          "url": "https://attack.mitre.org/techniques/T1598/"
+        }
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "spec_version": "2.1",
+      "id": "attack-pattern--8c607087-cbb0-4f32-a221-d83435f5693f",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Password Guessing",
+      "description": "Trying the most common passwords against privileged Gibson accounts.",
+      "external_references": [
+        {
+          "source_name": "mitre-attack",
+          "external_id": "T1110.001",
+          "url": "https://attack.mitre.org/techniques/T1110/001/"
+        }
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "spec_version": "2.1",
+      "id": "attack-pattern--a00dcef2-1601-4b4f-b648-0bb7acc2ae34",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Exfiltration Over C2 Channel",
+      "description": "Copying the garbage file off the Gibson over the intruder's own dial-up session.",
+      "external_references": [
+        {
+          "source_name": "mitre-attack",
+          "external_id": "T1041",
+          "url": "https://attack.mitre.org/techniques/T1041/"
+        }
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "spec_version": "2.1",
+      "id": "attack-pattern--7625cc32-dbbc-4f4a-93cf-3292f98f0b66",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Stored Data Manipulation",
+      "description": "Altering transaction amounts stored on the Gibson to skim money.",
+      "external_references": [
+        {
+          "source_name": "mitre-attack",
+          "external_id": "T1565.001",
+          "url": "https://attack.mitre.org/techniques/T1565/001/"
+        }
+      ]
+    },
+    {
+      "type": "tool",
+      "spec_version": "2.1",
+      "id": "tool--7e7e808f-37c7-4254-8575-14e7020d6a4b",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Dial-up modem",
+      "tool_types": [
+        "remote-access"
+      ],
+      "description": "The modem connection the crew uses to reach remote systems."
+    },
+    {
+      "type": "course-of-action",
+      "spec_version": "2.1",
+      "id": "course-of-action--d517378f-b284-404d-8041-494d3a9b5a34",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Remove the worm and reconcile accounts",
+      "description": "Remove the salami-slicing worm from the Gibson and reconcile every account it touched against the diverted fractions."
+    },
+    {
+      "type": "course-of-action",
+      "spec_version": "2.1",
+      "id": "course-of-action--b790ecf5-0aba-441a-8ae0-b249d49c7310",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Replace common passwords on the Gibson",
+      "description": "Retire common passwords on privileged Gibson accounts and enforce strong ones."
+    },
+    {
+      "type": "ipv4-addr",
+      "spec_version": "2.1",
+      "id": "ipv4-addr--e8e95628-3634-51a1-8be2-f5d03ba24592",
+      "value": "192.0.2.15"
+    },
+    {
+      "type": "domain-name",
+      "spec_version": "2.1",
+      "id": "domain-name--90a9c62a-f2c5-5502-b8d2-2ee057918911",
+      "value": "ellingson-mineral.example",
+      "resolves_to_refs": [
+        "ipv4-addr--e8e95628-3634-51a1-8be2-f5d03ba24592"
+      ]
+    },
+    {
+      "type": "url",
+      "spec_version": "2.1",
+      "id": "url--4782a3f0-2e66-5581-8015-318663e7d4af",
+      "value": "http://ellingson-mineral.example/gibson/garbage"
+    },
+    {
+      "type": "artifact",
+      "spec_version": "2.1",
+      "id": "artifact--85e3e46e-bf42-59d5-9d61-158923618e42",
+      "mime_type": "text/plain",
+      "payload_bin": "R0lCU09OIC8vIEdBUkJBR0UKcm91dGluZTogcm91bmQgZWFjaCB0cmFuc2ZlciBkb3duLCBrZWVwIHRoZSBmcmFjdGlvbgpmcmFjdGlvbnMgLT4gaG9sZGluZyBhY2NvdW50LCBiYXRjaGVkIG5pZ2h0bHkKcnVubmluZyB0b3RhbDogc3RpbGwgc21hbGwgZW5vdWdoIHRvIG1pc3MKZGEgdmluY2k6IGRlY295LCBhcm1lZA=="
+    },
+    {
+      "type": "file",
+      "spec_version": "2.1",
+      "id": "file--46b8a83f-6581-5e9f-849e-137413562714",
+      "name": "garbage",
+      "size": 181,
+      "hashes": {
+        "SHA-256": "6ef3f735fcf6e04d268d3eb1c17f71c06cb6418ffb95983b5849f756220b0dff"
+      },
+      "mime_type": "text/plain",
+      "content_ref": "artifact--85e3e46e-bf42-59d5-9d61-158923618e42"
+    },
+    {
+      "type": "observed-data",
+      "spec_version": "2.1",
+      "id": "observed-data--2d7d303d-769d-487d-8ff5-13e4e0462cd9",
+      "created": "1995-08-15T09:00:00.000Z",
+      "modified": "1995-08-15T09:00:00.000Z",
+      "first_observed": "1995-08-14T02:47:00.000Z",
+      "last_observed": "1995-08-14T02:58:00.000Z",
+      "number_observed": 1,
+      "object_refs": [
+        "ipv4-addr--e8e95628-3634-51a1-8be2-f5d03ba24592",
+        "file--46b8a83f-6581-5e9f-849e-137413562714",
+        "artifact--85e3e46e-bf42-59d5-9d61-158923618e42"
+      ]
+    },
+    {
+      "type": "observed-data",
+      "spec_version": "2.1",
+      "id": "observed-data--351e35e5-5273-49ed-b2d5-16a4e951f29b",
+      "created": "1995-08-22T09:00:00.000Z",
+      "modified": "1995-08-22T09:00:00.000Z",
+      "first_observed": "1995-08-21T23:10:00.000Z",
+      "last_observed": "1995-08-21T23:40:00.000Z",
+      "number_observed": 3,
+      "object_refs": [
+        "domain-name--90a9c62a-f2c5-5502-b8d2-2ee057918911",
+        "ipv4-addr--e8e95628-3634-51a1-8be2-f5d03ba24592"
+      ]
+    },
+    {
+      "type": "observed-data",
+      "spec_version": "2.1",
+      "id": "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8",
+      "created": "1995-09-02T09:00:00.000Z",
+      "modified": "1995-09-02T09:00:00.000Z",
+      "first_observed": "1995-09-01T23:30:00.000Z",
+      "last_observed": "1995-09-02T00:15:00.000Z",
+      "number_observed": 1,
+      "object_refs": [
+        "url--4782a3f0-2e66-5581-8015-318663e7d4af",
+        "file--46b8a83f-6581-5e9f-849e-137413562714",
+        "artifact--85e3e46e-bf42-59d5-9d61-158923618e42"
+      ]
+    },
+    {
+      "type": "indicator",
+      "spec_version": "2.1",
+      "id": "indicator--fa96607e-72ac-4619-8d53-1d6db18e9291",
+      "created": "1995-08-15T10:00:00.000Z",
+      "modified": "1995-08-15T10:00:00.000Z",
+      "name": "Garbage file SHA-256",
+      "indicator_types": [
+        "malicious-activity"
+      ],
+      "description": "The garbage file, which holds the evidence of the salami-slicing worm.",
+      "pattern": "[file:hashes.'SHA-256' = '6ef3f735fcf6e04d268d3eb1c17f71c06cb6418ffb95983b5849f756220b0dff']",
+      "pattern_type": "stix",
+      "pattern_version": "2.1",
+      "valid_from": "1995-08-15T10:00:00.000Z"
+    },
+    {
+      "type": "indicator",
+      "spec_version": "2.1",
+      "id": "indicator--6c5ca72a-3d7f-42c5-b4a7-2d57e10ecbdd",
+      "created": "1995-08-22T10:00:00.000Z",
+      "modified": "1995-08-22T10:00:00.000Z",
+      "name": "Garbage file location on the Gibson",
+      "indicator_types": [
+        "anomalous-activity"
+      ],
+      "description": "Requests for the garbage file's path on Ellingson's host.",
+      "pattern": "[url:value = 'http://ellingson-mineral.example/gibson/garbage']",
+      "pattern_type": "stix",
+      "pattern_version": "2.1",
+      "valid_from": "1995-08-22T10:00:00.000Z"
+    },
+    {
+      "type": "sighting",
+      "spec_version": "2.1",
+      "id": "sighting--3cf2ec0a-7cfe-42ca-b846-7fe7f17bfa23",
+      "created": "1995-09-02T10:00:00.000Z",
+      "modified": "1995-09-02T10:00:00.000Z",
+      "first_seen": "1995-09-01T23:30:00.000Z",
+      "last_seen": "1995-09-02T00:15:00.000Z",
+      "count": 1,
+      "sighting_of_ref": "indicator--fa96607e-72ac-4619-8d53-1d6db18e9291",
+      "observed_data_refs": [
+        "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8"
+      ],
+      "where_sighted_refs": [
+        "identity--4dd7a523-5d73-42c2-83bd-63f91d3f9ebd"
+      ]
+    },
+    {
+      "type": "sighting",
+      "spec_version": "2.1",
+      "id": "sighting--f1b8d69b-ae86-438c-997c-8cf131f56a31",
+      "created": "1995-09-02T10:00:00.000Z",
+      "modified": "1995-09-02T10:00:00.000Z",
+      "first_seen": "1995-09-01T23:30:00.000Z",
+      "last_seen": "1995-09-02T00:15:00.000Z",
+      "count": 1,
+      "sighting_of_ref": "indicator--6c5ca72a-3d7f-42c5-b4a7-2d57e10ecbdd",
+      "observed_data_refs": [
+        "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8"
+      ],
+      "where_sighted_refs": [
+        "identity--4dd7a523-5d73-42c2-83bd-63f91d3f9ebd"
+      ]
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--efdd8a95-16df-464a-a494-c9db2fa50ff8",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "attributed-to",
+      "source_ref": "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251",
+      "target_ref": "threat-actor--35817f6b-3bee-455b-9293-1b675c3e039f"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--524a54d4-e0c1-497a-aff0-37038ab7a2b9",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "attributed-to",
+      "source_ref": "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251",
+      "target_ref": "threat-actor--769697f8-5d89-4852-b0ca-35007a113207"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--bcb76dd2-a78d-4601-82da-295cdbaa056b",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "attributed-to",
+      "source_ref": "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251",
+      "target_ref": "threat-actor--9bece18c-6a60-4388-ad76-b17b87bc341c"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--e7957f9a-92f8-48a0-b8b7-d5cb4b81046e",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "attributed-to",
+      "source_ref": "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251",
+      "target_ref": "threat-actor--c244d45b-bd59-4aa1-9654-31fa5e838060"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--a55305dc-b273-4048-ae5b-87ebf334125d",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "attributed-to",
+      "source_ref": "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251",
+      "target_ref": "threat-actor--2089251f-5830-4ec5-acb7-75d95df5fe73"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--8eeeddf5-ad5a-458f-a8a1-7dbc83be4029",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "attributed-to",
+      "source_ref": "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251",
+      "target_ref": "threat-actor--1fb8f593-d33d-48a4-8552-c2d9c1866c69"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--d98c6b15-d57a-4d2a-9bcd-8d0040b13874",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "attributed-to",
+      "source_ref": "campaign--2b8c0f39-3568-4a89-8fbd-258815f30a9e",
+      "target_ref": "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--05a0fe48-4a7a-415c-a0a6-cdab032f2ebe",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "attributed-to",
+      "source_ref": "campaign--8a4cc02b-ae30-4990-83c8-064bbd5c0740",
+      "target_ref": "threat-actor--33cb320c-1869-4419-ac56-2baaffa7d8b8"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--369e9b61-a666-4a0f-98a4-cae9a9347f9b",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "authored-by",
+      "source_ref": "malware--4ca60a83-79b5-4ae9-a447-85c67318c125",
+      "target_ref": "threat-actor--33cb320c-1869-4419-ac56-2baaffa7d8b8"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--a4dcf6e1-c8bc-4fa1-b155-d9e60c236270",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "authored-by",
+      "source_ref": "malware--b646305f-de43-4fd2-8bdf-59d2b74f4fb7",
+      "target_ref": "threat-actor--33cb320c-1869-4419-ac56-2baaffa7d8b8"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--726c84a6-de6d-4c57-b595-2419f7fa9350",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "targets",
+      "source_ref": "threat-actor--33cb320c-1869-4419-ac56-2baaffa7d8b8",
+      "target_ref": "identity--1811a3f4-5206-48e0-b9b3-1f4a739c38b9"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--64643082-7d3a-4f8e-8703-fa4952635d10",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "campaign--8a4cc02b-ae30-4990-83c8-064bbd5c0740",
+      "target_ref": "malware--b646305f-de43-4fd2-8bdf-59d2b74f4fb7"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--9a01c6f6-593f-4c97-89a3-55e8f73e9a1e",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "targets",
+      "source_ref": "malware--4ca60a83-79b5-4ae9-a447-85c67318c125",
+      "target_ref": "infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--ce0fc4a2-c2c4-42ea-bd54-a130ecf12c4f",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "targets",
+      "source_ref": "malware--b646305f-de43-4fd2-8bdf-59d2b74f4fb7",
+      "target_ref": "infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--830816a9-61e1-4a62-99d8-44a6b158769a",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "malware--4ca60a83-79b5-4ae9-a447-85c67318c125",
+      "target_ref": "attack-pattern--7625cc32-dbbc-4f4a-93cf-3292f98f0b66"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--84981acb-70a7-42a2-9d5a-9634f7c2683f",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "related-to",
+      "source_ref": "identity--1811a3f4-5206-48e0-b9b3-1f4a739c38b9",
+      "target_ref": "infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c",
+      "description": "Ellingson Mineral Company owns and operates the Gibson."
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--b91974fe-f527-431b-a55e-db33fd04a671",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "located-at",
+      "source_ref": "identity--1811a3f4-5206-48e0-b9b3-1f4a739c38b9",
+      "target_ref": "location--2bb7b5a8-54ea-4cb9-a7f1-3b3bbe9e9825"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--2f5845bb-905b-4b68-8dd6-a34671dade02",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "located-at",
+      "source_ref": "threat-actor--35817f6b-3bee-455b-9293-1b675c3e039f",
+      "target_ref": "location--2bb7b5a8-54ea-4cb9-a7f1-3b3bbe9e9825"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--f922f737-371b-4439-811a-082d65439f5a",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "compromises",
+      "source_ref": "campaign--2b8c0f39-3568-4a89-8fbd-258815f30a9e",
+      "target_ref": "infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--7723e9d9-7776-4478-a629-cc917b9ca0e9",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "targets",
+      "source_ref": "campaign--2b8c0f39-3568-4a89-8fbd-258815f30a9e",
+      "target_ref": "identity--1811a3f4-5206-48e0-b9b3-1f4a739c38b9"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--e0d856f3-93ac-4416-8c6b-6bff1624447a",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "campaign--2b8c0f39-3568-4a89-8fbd-258815f30a9e",
+      "target_ref": "attack-pattern--a00dcef2-1601-4b4f-b648-0bb7acc2ae34"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--6113f961-9f11-487f-a534-97c9aa8d0eac",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "compromises",
+      "source_ref": "threat-actor--1fb8f593-d33d-48a4-8552-c2d9c1866c69",
+      "target_ref": "infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--17f76974-2007-490f-8731-d543e80e584c",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "threat-actor--1fb8f593-d33d-48a4-8552-c2d9c1866c69",
+      "target_ref": "attack-pattern--a00dcef2-1601-4b4f-b648-0bb7acc2ae34"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--8575d565-bfb6-4d8c-a4cd-e158f0d67d82",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "threat-actor--35817f6b-3bee-455b-9293-1b675c3e039f",
+      "target_ref": "attack-pattern--af6b93c5-2f3a-4790-9eb6-10a48e433f15"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--8a87ac06-8183-4fd6-bcf3-46312becc151",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "threat-actor--35817f6b-3bee-455b-9293-1b675c3e039f",
+      "target_ref": "tool--7e7e808f-37c7-4254-8575-14e7020d6a4b"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--f365b3ed-48a5-404b-9a6d-a8625ad179ea",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "threat-actor--769697f8-5d89-4852-b0ca-35007a113207",
+      "target_ref": "tool--7e7e808f-37c7-4254-8575-14e7020d6a4b"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--32af25d8-1422-4867-b55a-bac635700063",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251",
+      "target_ref": "attack-pattern--8c607087-cbb0-4f32-a221-d83435f5693f"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--739eabfb-0d97-4698-a727-dd3e5e0baf3b",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "targets",
+      "source_ref": "attack-pattern--8c607087-cbb0-4f32-a221-d83435f5693f",
+      "target_ref": "vulnerability--76711ef5-f535-45fa-8dd7-c7b40f0d7c18"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--ef14849c-8ea1-4319-96db-2f36f22b303b",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "has",
+      "source_ref": "infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c",
+      "target_ref": "vulnerability--76711ef5-f535-45fa-8dd7-c7b40f0d7c18"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--a7ca1b02-7ffb-49b7-b206-99f0b75e564f",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "consists-of",
+      "source_ref": "infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c",
+      "target_ref": "domain-name--90a9c62a-f2c5-5502-b8d2-2ee057918911"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--05639ed3-dd0d-41ac-957e-87bd017687ad",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "mitigates",
+      "source_ref": "course-of-action--d517378f-b284-404d-8041-494d3a9b5a34",
+      "target_ref": "malware--4ca60a83-79b5-4ae9-a447-85c67318c125"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--78f5a624-652b-4938-9a6a-df83d934cd7a",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "mitigates",
+      "source_ref": "course-of-action--b790ecf5-0aba-441a-8ae0-b249d49c7310",
+      "target_ref": "vulnerability--76711ef5-f535-45fa-8dd7-c7b40f0d7c18"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--ce467fef-7a46-4b53-bf26-78d7b907a67f",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "indicates",
+      "source_ref": "indicator--fa96607e-72ac-4619-8d53-1d6db18e9291",
+      "target_ref": "malware--4ca60a83-79b5-4ae9-a447-85c67318c125"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--a5e4983f-ea0f-4154-83da-162dff91e69f",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "based-on",
+      "source_ref": "indicator--fa96607e-72ac-4619-8d53-1d6db18e9291",
+      "target_ref": "observed-data--2d7d303d-769d-487d-8ff5-13e4e0462cd9"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--69f4a08a-3bcd-456d-94f5-c6ffb13abeb7",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "relationship_type": "indicates",
+      "source_ref": "indicator--6c5ca72a-3d7f-42c5-b4a7-2d57e10ecbdd",
+      "target_ref": "campaign--2b8c0f39-3568-4a89-8fbd-258815f30a9e"
+    },
+    {
+      "type": "grouping",
+      "spec_version": "2.1",
+      "id": "grouping--982660d8-2c4b-4cd9-8b8b-7170319d4fde",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Garbage file evidence",
+      "context": "suspicious-activity",
+      "description": "The evidence that ties the salami-slicing worm to The Plague.",
+      "object_refs": [
+        "file--46b8a83f-6581-5e9f-849e-137413562714",
+        "artifact--85e3e46e-bf42-59d5-9d61-158923618e42",
+        "url--4782a3f0-2e66-5581-8015-318663e7d4af",
+        "observed-data--2d7d303d-769d-487d-8ff5-13e4e0462cd9",
+        "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8",
+        "indicator--fa96607e-72ac-4619-8d53-1d6db18e9291",
+        "indicator--6c5ca72a-3d7f-42c5-b4a7-2d57e10ecbdd",
+        "sighting--3cf2ec0a-7cfe-42ca-b846-7fe7f17bfa23",
+        "sighting--f1b8d69b-ae86-438c-997c-8cf131f56a31"
+      ]
+    },
+    {
+      "type": "note",
+      "spec_version": "2.1",
+      "id": "note--c87caa11-c40d-4e2b-b83a-ef2655992450",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "abstract": "What the garbage file holds",
+      "content": "The garbage file is not junk: it records the worm's rounding routine and the account receiving the fractions, which is why The Plague wants it gone.",
+      "authors": [
+        "Case analyst"
+      ],
+      "object_refs": [
+        "file--46b8a83f-6581-5e9f-849e-137413562714",
+        "malware--4ca60a83-79b5-4ae9-a447-85c67318c125"
+      ]
+    },
+    {
+      "type": "opinion",
+      "spec_version": "2.1",
+      "id": "opinion--74fee950-76af-464b-82ac-b1427f958c6f",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "opinion": "strongly-agree",
+      "explanation": "The garbage file points to The Plague as the author of both the worm and Da Vinci; the crew was framed.",
+      "authors": [
+        "Case analyst"
+      ],
+      "object_refs": [
+        "campaign--8a4cc02b-ae30-4990-83c8-064bbd5c0740"
+      ]
+    },
+    {
+      "type": "report",
+      "spec_version": "2.1",
+      "id": "report--5b8eed6a-8ced-46b3-aee2-9fd855d2bae6",
+      "created": "1995-09-15T12:00:00.000Z",
+      "modified": "1995-09-15T12:00:00.000Z",
+      "name": "Hackers (1995): the Ellingson case file",
+      "report_types": [
+        "threat-report",
+        "campaign",
+        "threat-actor"
+      ],
+      "published": "1995-09-15T12:00:00.000Z",
+      "description": "## Overview\n\n*Hackers* (1995) follows a handful of New York City (`location--2bb7b5a8-54ea-4cb9-a7f1-3b3bbe9e9825`) teenagers who stumble onto an embezzlement scheme running inside Ellingson Mineral Company (`identity--1811a3f4-5206-48e0-b9b3-1f4a739c38b9`). The scheme's author is the company's own security chief, and when the teenagers get too close he turns the law on them. This report retells the film as a case file: each person, piece of malware, system and item of evidence is a STIX object, cited by its id where the text first discusses it. The film gives no calendar dates, so the timestamps on the evidence (August to early September 1995) are invented for the dataset.\n\n## Cast\n\n- *Zero Cool* (`threat-actor--35817f6b-3bee-455b-9293-1b675c3e039f`) is Dade Murphy. Zero Cool is the handle he made infamous as a child in 1988; in 1995 he hacks as Crash Override.\n- *Acid Burn* (`threat-actor--769697f8-5d89-4852-b0ca-35007a113207`) is Kate Libby, the crew's other top hacker and Dade's rival.\n- *Cereal Killer* (`threat-actor--9bece18c-6a60-4388-ad76-b17b87bc341c`) is Emmanuel Goldstein.\n- *Lord Nikon* (`threat-actor--c244d45b-bd59-4aa1-9654-31fa5e838060`) is Paul Cook, known for his photographic memory.\n- *Phantom Phreak* (`threat-actor--2089251f-5830-4ec5-acb7-75d95df5fe73`) is Ramón Sánchez, the crew's telephone specialist.\n- *Joey Pardella* (`threat-actor--1fb8f593-d33d-48a4-8552-c2d9c1866c69`) is the youngest of them and has not yet earned a handle.\n- Together they form *The Elite* (`intrusion-set--8a20f35b-7222-47f9-a508-413067db5251`), a loose crew rather than an organized group.\n- *The Plague* (`threat-actor--33cb320c-1869-4419-ac56-2baaffa7d8b8`) is Eugene Belford, a former hacker who now runs computer security at Ellingson.\n- Margo Wallace is an Ellingson executive and The Plague's partner in the theft. She has no object in this bundle.\n- *Richard Gill* (`identity--4dd7a523-5d73-42c2-83bd-63f91d3f9ebd`) is the U.S. Secret Service agent who leads the pursuit of the crew.\n\n## Plot\n\n### Act I: Zero Cool's 1988 crash and ban\n\nIn 1988 an eleven-year-old Dade Murphy, signing himself *Zero Cool*, unleashes code that brings down 1,507 computer systems in a single day and rattles the financial markets. He is caught, his family is fined, and a court bars him from owning or using a computer until he turns eighteen. The handle becomes a legend in the underground while the boy behind it disappears from view.\n\n### Act II: The Gibson intrusion and the garbage file\n\nSeven years later Dade, now eighteen, moves to Manhattan with his mother. Soon after he gets back online he talks a security guard at a local television station into reading out the number of the station's modem, an instance of *Phishing for Information* (`attack-pattern--af6b93c5-2f3a-4790-9eb6-10a48e433f15`), and takes over the broadcast through a *Dial-up modem* (`tool--7e7e808f-37c7-4254-8575-14e7020d6a4b`). Another intruder is already inside and throws him out. She calls herself Acid Burn; he answers with his new handle, Crash Override. At school he meets Kate Libby and her friends, and the rivalry between the two of them sets the tone for everything that follows.\n\nJoey, desperate to prove he belongs, dials into the *Gibson* (`infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c`), Ellingson's supercomputer. Privileged accounts on the Gibson are guarded by some of the most common passwords in use, recorded here as *Gibson weak account passwords* (`vulnerability--76711ef5-f535-45fa-8dd7-c7b40f0d7c18`), exactly the opening that *Password Guessing* (`attack-pattern--8c607087-cbb0-4f32-a221-d83435f5693f`) exploits and that the crew leans on throughout. As a trophy Joey copies part of an innocuous-looking file named *garbage* (`file--46b8a83f-6581-5e9f-849e-137413562714`) over his own connection, an example of *Exfiltration Over C2 Channel* (`attack-pattern--a00dcef2-1601-4b4f-b648-0bb7acc2ae34`). That session against *192.0.2.15* (`ipv4-addr--e8e95628-3634-51a1-8be2-f5d03ba24592`), the Gibson's address, is recorded in observed-data `observed-data--2d7d303d-769d-487d-8ff5-13e4e0462cd9`, and the file's bytes are preserved in `artifact--85e3e46e-bf42-59d5-9d61-158923618e42`.\n\n### Act III: The Plague's worm and the Da Vinci frame-up\n\nThe garbage file is not junk. It holds the workings of the *Salami-slicing worm* (`malware--4ca60a83-79b5-4ae9-a447-85c67318c125`), which The Plague planted to shave a sliver off each Ellingson transaction and route the fractions to an account he and Margo Wallace control. The worm's tampering with stored amounts is *Stored Data Manipulation* (`attack-pattern--7625cc32-dbbc-4f4a-93cf-3292f98f0b66`). Its hash, recorded as the indicator *Garbage file SHA-256* (`indicator--fa96607e-72ac-4619-8d53-1d6db18e9291`), becomes the thread that ties the theft to him.\n\nRather than let the copy surface, The Plague launches *The Plague's frame-up* (`campaign--8a4cc02b-ae30-4990-83c8-064bbd5c0740`). He sets loose *Da Vinci* (`malware--b646305f-de43-4fd2-8bdf-59d2b74f4fb7`), a virus that threatens to capsize Ellingson's tanker fleet unless a ransom is paid, and tells the Secret Service that the teenage hackers wrote it. Agent Gill arrests Joey and later Phantom Phreak, and the crew comes under surveillance. Traffic to *ellingson-mineral.example* (`domain-name--90a9c62a-f2c5-5502-b8d2-2ee057918911`), which resolves to that same address, is captured in `observed-data--351e35e5-5273-49ed-b2d5-16a4e951f29b`. The Plague also leans on Dade directly, using his mother as leverage and pressing him to hand over the stolen data. Reading the garbage file for themselves, the crew realizes that Da Vinci is a smokescreen meant to bury the worm and that the only proof of their innocence is the full file, still sitting on the Gibson.\n\n### Act IV: \"Hack the Planet\"\n\nThe crew answers with *Hack the Planet* (`campaign--2b8c0f39-3568-4a89-8fbd-258815f30a9e`). They put out a call across the hacker underground for everyone to hit the Gibson at once, so that The Plague and his staff are swamped while Dade and Kate go after the evidence. Working from payphones in Grand Central Terminal, they keep the system busy long enough to copy the whole garbage file from *http://ellingson-mineral.example/gibson/garbage* (`url--4782a3f0-2e66-5581-8015-318663e7d4af`). That retrieval is recorded in `observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8`, and the request path became the indicator *Garbage file location on the Gibson* (`indicator--6c5ca72a-3d7f-42c5-b4a7-2d57e10ecbdd`).\n\n### Act V: Arrests and exoneration\n\nGill's agents close in and arrest Dade and Kate on the spot, but the copied evidence slips past them into the hands of the rest of the crew. Once it is made public, the story turns. The two sightings, `sighting--3cf2ec0a-7cfe-42ca-b846-7fe7f17bfa23` (the file hash) and `sighting--f1b8d69b-ae86-438c-997c-8cf131f56a31` (the file path), record Gill's side of the case confirming both indicators. The Plague is arrested as he tries to leave the country, Margo Wallace is taken into custody as well, and the charges against the crew are dropped.\n\n## Aftermath\n\nWith its embezzler exposed, Ellingson is left to clean up. The recommended remedies are *Remove the worm and reconcile accounts* (`course-of-action--d517378f-b284-404d-8041-494d3a9b5a34`) and *Replace common passwords on the Gibson* (`course-of-action--b790ecf5-0aba-441a-8ae0-b249d49c7310`). The grouping *Garbage file evidence* (`grouping--982660d8-2c4b-4cd9-8b8b-7170319d4fde`) collects the file, its copies and the detections. The note *What the garbage file holds* (`note--c87caa11-c40d-4e2b-b83a-ef2655992450`) explains why the file mattered, and an analyst opinion (`opinion--74fee950-76af-464b-82ac-b1427f958c6f`) strongly agrees that the crew was framed. Dade and Kate, their duel settled, end the film on a rooftop together while the rest of the crew uses a building's lights to spell out a message of its own.",
+      "object_refs": [
+        "threat-actor--35817f6b-3bee-455b-9293-1b675c3e039f",
+        "threat-actor--769697f8-5d89-4852-b0ca-35007a113207",
+        "threat-actor--9bece18c-6a60-4388-ad76-b17b87bc341c",
+        "threat-actor--c244d45b-bd59-4aa1-9654-31fa5e838060",
+        "threat-actor--2089251f-5830-4ec5-acb7-75d95df5fe73",
+        "threat-actor--1fb8f593-d33d-48a4-8552-c2d9c1866c69",
+        "threat-actor--33cb320c-1869-4419-ac56-2baaffa7d8b8",
+        "intrusion-set--8a20f35b-7222-47f9-a508-413067db5251",
+        "location--2bb7b5a8-54ea-4cb9-a7f1-3b3bbe9e9825",
+        "identity--1811a3f4-5206-48e0-b9b3-1f4a739c38b9",
+        "identity--4dd7a523-5d73-42c2-83bd-63f91d3f9ebd",
+        "infrastructure--ef2790ea-e944-4c32-8e2e-62b404bd072c",
+        "vulnerability--76711ef5-f535-45fa-8dd7-c7b40f0d7c18",
+        "malware--4ca60a83-79b5-4ae9-a447-85c67318c125",
+        "malware--b646305f-de43-4fd2-8bdf-59d2b74f4fb7",
+        "campaign--8a4cc02b-ae30-4990-83c8-064bbd5c0740",
+        "campaign--2b8c0f39-3568-4a89-8fbd-258815f30a9e",
+        "attack-pattern--af6b93c5-2f3a-4790-9eb6-10a48e433f15",
+        "attack-pattern--8c607087-cbb0-4f32-a221-d83435f5693f",
+        "attack-pattern--a00dcef2-1601-4b4f-b648-0bb7acc2ae34",
+        "attack-pattern--7625cc32-dbbc-4f4a-93cf-3292f98f0b66",
+        "tool--7e7e808f-37c7-4254-8575-14e7020d6a4b",
+        "course-of-action--d517378f-b284-404d-8041-494d3a9b5a34",
+        "course-of-action--b790ecf5-0aba-441a-8ae0-b249d49c7310",
+        "ipv4-addr--e8e95628-3634-51a1-8be2-f5d03ba24592",
+        "domain-name--90a9c62a-f2c5-5502-b8d2-2ee057918911",
+        "url--4782a3f0-2e66-5581-8015-318663e7d4af",
+        "artifact--85e3e46e-bf42-59d5-9d61-158923618e42",
+        "file--46b8a83f-6581-5e9f-849e-137413562714",
+        "observed-data--2d7d303d-769d-487d-8ff5-13e4e0462cd9",
+        "observed-data--351e35e5-5273-49ed-b2d5-16a4e951f29b",
+        "observed-data--0d9e70c2-76d1-4ba2-b615-68b0d6aa87f8",
+        "indicator--fa96607e-72ac-4619-8d53-1d6db18e9291",
+        "indicator--6c5ca72a-3d7f-42c5-b4a7-2d57e10ecbdd",
+        "sighting--3cf2ec0a-7cfe-42ca-b846-7fe7f17bfa23",
+        "sighting--f1b8d69b-ae86-438c-997c-8cf131f56a31",
+        "grouping--982660d8-2c4b-4cd9-8b8b-7170319d4fde",
+        "note--c87caa11-c40d-4e2b-b83a-ef2655992450",
+        "opinion--74fee950-76af-464b-82ac-b1427f958c6f"
+      ]
+    }
+  ]
+}
